@@ -137,6 +137,31 @@ export class ChatState {
 			this.agentPhase = 'idle';
 		}
 	}
+
+	loadFromHistory(
+		dbMessages: Array<{
+			id: string;
+			role: string;
+			content: string | null;
+			tool_calls: unknown[] | null;
+			agent: string | null;
+			created_at: string;
+		}>
+	) {
+		this.messages = dbMessages
+			.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
+			.map((m) => ({
+				id: m.id,
+				role: m.role === 'user' ? ('user' as const) : ('agent' as const),
+				agent: m.agent ?? undefined,
+				content: m.content ?? '',
+				status: 'complete' as const,
+				timestamp: new Date(m.created_at).getTime()
+			}));
+		this.isStreaming = false;
+		this.agentPhase = 'idle';
+		this.error = null;
+	}
 }
 
 const CHAT_CTX = Symbol('chat');
