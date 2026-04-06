@@ -26,6 +26,19 @@ export class ChatState {
 	agentPhase = $state<AgentPhase>('idle');
 	isStreaming = $state(false);
 	error = $state<string | null>(null);
+	conversationId = $state<string | null>(null);
+
+	setConversationId(id: string) {
+		this.conversationId = id;
+	}
+
+	startNewConversation() {
+		this.conversationId = null;
+		this.messages = [];
+		this.agentPhase = 'idle';
+		this.isStreaming = false;
+		this.error = null;
+	}
 
 	addUserMessage(content: string): Message {
 		const msg: Message = {

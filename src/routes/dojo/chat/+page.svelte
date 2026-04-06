@@ -16,7 +16,10 @@
 			const res = await fetch('/api/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ message })
+				body: JSON.stringify({
+						message,
+						...(chat.conversationId ? { conversationId: chat.conversationId } : {})
+					})
 			});
 
 			if (!res.ok) {
@@ -51,6 +54,9 @@
 						try {
 							const parsed = JSON.parse(data);
 							switch (currentEvent) {
+								case 'conversation':
+									chat.setConversationId(parsed.id);
+									break;
 								case 'token':
 									chat.appendToken(agentMsg.id, parsed.content);
 									break;

@@ -8,11 +8,12 @@
  *   4. Send tool results back to Claude and repeat from step 2
  *   5. When Claude responds with pure text (no tool_calls), emit done
  *
- * SSE events: status, token, tool_call, tool_result, pr_opened, done, error
+ * SSE events: conversation, status, token, tool_call, tool_result, pr_opened, done, error
  */
 
 import { FLUX_SYSTEM_PROMPT, OPENROUTER_MODEL } from '$lib/server/flux-prompt';
 import { TOOL_DEFINITIONS, TaskContext, executeTool } from '$lib/server/tools';
+import { getSupabase } from '$lib/server/supabase';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
@@ -45,9 +46,6 @@ interface StreamDelta {
 	}>;
 }
 
-// In-memory conversation store (Sprint 1 — replaced by Supabase in Sprint 2)
-const conversations = new Map<string, ChatMessage[]>();
-
 // Max tool-use iterations to prevent infinite loops
 const MAX_ITERATIONS = 15;
 
@@ -61,7 +59,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const body = await request.json();
-	const { message, conversationId = 'default' } = body as {
+	const { message, conversationId } = body as {
 		message: string;
 		conversationId?: string;
 	};
@@ -73,14 +71,46 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
-	// Get or create conversation history
-	if (!conversations.has(conversationId)) {
-		conversations.set(conversationId, []);
-	}
-	const history = conversations.get(conversationId)!;
+	const supabase = getSupabase();
 
-	// Add user message to history
+	// Get or create conversation
+	let convId = conversationId;
+	if (!convId) {
+		const { data, error: insertErr } = await supabase
+			.from('conversations')
+			.insert({ title: message.slice(0, 100) })
+			.select('id')
+			.single();
+		if (insertErr || !data) {
+			return new Response(
+				JSON.stringify({ error: 'Failed to create conversation' }),
+				{ status: 500, headers: { 'Content-Type': 'application/json' } }
+			);
+		}
+		convId = data.id;
+	}
+
+	// Load conversation history from DB
+	const { data: rows } = await supabase
+		.from('messages')
+		.select('role, content, tool_calls, tool_call_id')
+		.eq('conversation_id', convId)
+		.order('created_at', { ascending: true });
+
+	const history: ChatMessage[] = (rows ?? []).map((r: { role: string; content: string | null; tool_calls: ToolCall[] | null; tool_call_id: string | null }) => ({
+		role: r.role as ChatMessage['role'],
+		content: r.content,
+		tool_calls: r.tool_calls ?? undefined,
+		tool_call_id: r.tool_call_id ?? undefined
+	}));
+
+	// Add user message to history and persist
 	history.push({ role: 'user', content: message });
+	await supabase.from('messages').insert({
+		conversation_id: convId,
+		role: 'user',
+		content: message
+	});
 
 	// Create a task context — derive slug from first few words of the message
 	const slug = message
@@ -104,8 +134,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			};
 
 			try {
+				// Emit conversation ID so frontend can track it
+				emit('conversation', { id: convId });
+
 				let iteration = 0;
-				let fullAssistantContent = '';
 
 				while (iteration < MAX_ITERATIONS) {
 					iteration++;
@@ -224,7 +256,7 @@ export const POST: RequestHandler = async ({ request }) => {
 							function: { name: tc.name, arguments: tc.arguments }
 						}));
 
-					// Store assistant message in history
+					// Store assistant message in history and persist
 					const assistantMsg: ChatMessage = {
 						role: 'assistant',
 						content: assistantContent || null
@@ -234,7 +266,13 @@ export const POST: RequestHandler = async ({ request }) => {
 					}
 					history.push(assistantMsg);
 
-					fullAssistantContent += assistantContent;
+					await supabase.from('messages').insert({
+						conversation_id: convId,
+						role: 'assistant',
+						content: assistantContent || null,
+						tool_calls: toolCalls.length > 0 ? toolCalls : null,
+						agent: 'FLUX'
+					});
 
 					// If no tool calls, we're done
 					if (toolCalls.length === 0) {
@@ -280,11 +318,18 @@ export const POST: RequestHandler = async ({ request }) => {
 							});
 						}
 
-						// Add tool result to history
+						// Add tool result to history and persist
 						history.push({
 							role: 'tool',
 							tool_call_id: tc.id,
 							content: result.content
+						});
+
+						await supabase.from('messages').insert({
+							conversation_id: convId,
+							role: 'tool',
+							content: result.content,
+							tool_call_id: tc.id
 						});
 					}
 
