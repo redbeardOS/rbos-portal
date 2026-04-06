@@ -17,7 +17,7 @@ export interface ToolCall {
 	status: 'running' | 'done' | 'error';
 }
 
-export type AgentPhase = 'idle' | 'thinking' | 'coding' | 'committing' | 'error';
+export type AgentPhase = 'idle' | 'thinking' | 'coding' | 'committing' | 'reviewing' | 'error';
 
 export class ChatState {
 	messages = $state<Message[]>([]);
@@ -63,6 +63,20 @@ export class ChatState {
 		this.messages.push(msg);
 		this.isStreaming = true;
 		this.agentPhase = 'thinking';
+		return msg;
+	}
+
+	startSamReview(): Message {
+		const msg: Message = {
+			id: crypto.randomUUID(),
+			role: 'agent',
+			agent: 'SAM',
+			content: '',
+			status: 'streaming',
+			timestamp: Date.now()
+		};
+		this.messages.push(msg);
+		this.agentPhase = 'reviewing';
 		return msg;
 	}
 

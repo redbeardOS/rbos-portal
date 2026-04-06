@@ -314,6 +314,11 @@ export async function executeTool(
 		}
 	} catch (err: unknown) {
 		const msg = err instanceof Error ? err.message : JSON.stringify(err);
-		return { content: `Error executing ${call.name}: ${msg}` };
+		const stack = err instanceof Error ? err.stack : undefined;
+		console.error(`Tool execution error [${call.name}]:`, msg, stack);
+
+		return {
+			content: `Error executing ${call.name}: ${msg}\n\nYou may retry this operation or try a different approach.`
+		};
 	}
 }
