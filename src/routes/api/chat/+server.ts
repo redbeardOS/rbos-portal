@@ -54,7 +54,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			'Authorization': `Bearer ${apiKey}`,
 			'Content-Type': 'application/json',
 			'HTTP-Referer': 'https://rbos-portal.vercel.app',
-			'X-Title': 'RBOS Portal — Dojo'
+			'X-Title': 'RBOS Portal - Dojo'
 		},
 		body: JSON.stringify({
 			model: OPENROUTER_MODEL,
