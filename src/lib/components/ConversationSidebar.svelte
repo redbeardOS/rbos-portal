@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ConversationListState } from '$lib/stores/conversations.svelte';
+	import ThemePicker from './ThemePicker.svelte';
 
 	let {
 		state: convState,
@@ -41,30 +42,20 @@
 <aside
 	class="transition-all duration-200 {isOpen
 		? 'w-[260px]'
-		: 'w-0'} overflow-hidden shrink-0 border-r border-neutral-800 bg-neutral-950 h-full"
+		: 'w-0'} overflow-hidden shrink-0 border-r h-full"
+	style="border-color: var(--rb-border); background: var(--bg-deep)"
 >
 	<div class="w-[260px] h-full flex flex-col">
 		<!-- Header -->
-		<div class="p-3 border-b border-neutral-800 flex items-center justify-between">
-			<span class="text-xs font-medium text-neutral-400 uppercase tracking-wider"
-				>Conversations</span
-			>
+		<div class="p-3 border-b flex items-center justify-between" style="border-color: var(--rb-border)">
+			<span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted)">Conversations</span>
 			<button
 				onclick={onNew}
-				class="text-neutral-500 hover:text-neutral-200 transition-colors p-1 rounded hover:bg-neutral-800"
+				class="transition-colors p-1 rounded"
+				style="color: var(--text-muted)"
 				title="New conversation"
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="5" x2="12" y2="19" />
 					<line x1="5" y1="12" x2="19" y2="12" />
 				</svg>
@@ -74,38 +65,22 @@
 		<!-- List -->
 		<div class="flex-1 overflow-y-auto">
 			{#if convState.loading}
-				<!-- Skeleton items -->
 				{#each [1, 2, 3] as _}
 					<div class="px-3 py-2.5 border-l-2 border-transparent">
-						<div class="h-4 bg-neutral-800 rounded animate-pulse w-3/4"></div>
-						<div class="h-3 bg-neutral-800/50 rounded animate-pulse w-1/3 mt-1.5"></div>
+						<div class="h-4 rounded animate-pulse w-3/4" style="background: var(--bg-raised)"></div>
+						<div class="h-3 rounded animate-pulse w-1/3 mt-1.5" style="background: var(--bg-raised); opacity: 0.5"></div>
 					</div>
 				{/each}
 			{:else if convState.conversations.length === 0}
-				<div class="p-4 text-center text-xs text-neutral-600">No conversations yet</div>
+				<div class="p-4 text-center text-xs" style="color: var(--text-muted)">No conversations yet</div>
 			{:else}
 				{#each convState.conversations as conv (conv.id)}
 					{#if confirmDeleteId === conv.id}
-						<!-- Delete confirmation -->
-						<div
-							class="px-3 py-2.5 border-l-2 border-red-500 bg-neutral-900 flex items-center justify-between"
-						>
-							<span class="text-xs text-neutral-400">Delete?</span>
+						<div class="px-3 py-2.5 border-l-2 flex items-center justify-between" style="border-color: var(--rb-error); background: var(--bg-raised)">
+							<span class="text-xs" style="color: var(--text-muted)">Delete?</span>
 							<div class="flex gap-2">
-								<button
-									onclick={() => handleDelete(conv.id)}
-									class="text-xs text-red-400 hover:text-red-300 transition-colors"
-								>
-									Yes
-								</button>
-								<button
-									onclick={() => {
-										confirmDeleteId = null;
-									}}
-									class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-								>
-									No
-								</button>
+								<button onclick={() => handleDelete(conv.id)} class="text-xs transition-colors" style="color: var(--rb-error)">Yes</button>
+								<button onclick={() => { confirmDeleteId = null; }} class="text-xs transition-colors" style="color: var(--text-muted)">No</button>
 							</div>
 						</div>
 					{:else}
@@ -115,41 +90,25 @@
 							onkeydown={(e) => { if (e.key === 'Enter') onSelect(conv.id); }}
 							role="button"
 							tabindex="0"
-							class="w-full text-left px-3 py-2.5 hover:bg-neutral-900 transition-colors group cursor-pointer
-								{convState.activeId === conv.id
-								? 'bg-neutral-900 border-l-2 border-emerald-500'
-								: 'border-l-2 border-transparent'}"
+							class="w-full text-left px-3 py-2.5 transition-colors group cursor-pointer border-l-2"
+							style="{convState.activeId === conv.id
+								? `background: var(--bg-raised); border-color: var(--accent-primary)`
+								: 'border-color: transparent'}"
 						>
-							<div class="text-sm text-neutral-200 truncate">
+							<div class="text-sm truncate" style="color: var(--text-heading)">
 								{conv.title || 'Untitled'}
 							</div>
-							<div
-								class="text-[10px] text-neutral-600 mt-0.5 flex items-center justify-between"
-							>
+							<div class="text-[10px] mt-0.5 flex items-center justify-between" style="color: var(--text-muted)">
 								<span>{formatTime(conv.updated_at)}</span>
 								<button
-									onclick={(e) => {
-										e.stopPropagation();
-										confirmDeleteId = conv.id;
-									}}
-									class="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-400 transition-all"
+									onclick={(e) => { e.stopPropagation(); confirmDeleteId = conv.id; }}
+									class="opacity-0 group-hover:opacity-100 transition-all"
+									style="color: var(--text-muted)"
 									title="Delete conversation"
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="14"
-										height="14"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 										<polyline points="3 6 5 6 21 6" />
-										<path
-											d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-										/>
+										<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
 									</svg>
 								</button>
 							</div>
@@ -158,5 +117,8 @@
 				{/each}
 			{/if}
 		</div>
+
+		<!-- Theme picker at bottom -->
+		<ThemePicker />
 	</div>
 </aside>

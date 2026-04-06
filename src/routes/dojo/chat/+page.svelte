@@ -166,52 +166,42 @@
 	<title>Dojo — RBOS Portal</title>
 </svelte:head>
 
-<div class="flex flex-col h-full bg-neutral-950 text-neutral-100">
+<div class="flex flex-col h-full" style="background: var(--bg-surface); color: var(--text-body)">
 	<header
-		class="shrink-0 border-b border-neutral-800 px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm"
+		class="shrink-0 border-b px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between backdrop-blur-sm"
+		style="border-color: var(--rb-border); background: var(--bg-deep)"
 	>
 		<div class="flex items-center gap-2 md:gap-3">
 			<button
 				onclick={() => sidebar.toggle()}
-				class="text-neutral-500 hover:text-neutral-300 transition-colors"
+				class="transition-colors"
+				style="color: var(--text-muted)"
 				title="Toggle sidebar"
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="18"
-					height="18"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="3" y1="6" x2="21" y2="6" />
 					<line x1="3" y1="12" x2="21" y2="12" />
 					<line x1="3" y1="18" x2="21" y2="18" />
 				</svg>
 			</button>
-			<a href="/" class="hidden md:inline text-neutral-500 hover:text-neutral-300 text-sm transition-colors">
+			<a href="/" class="hidden md:inline text-sm transition-colors" style="color: var(--text-muted)">
 				Portal
 			</a>
-			<span class="hidden md:inline text-neutral-700">/</span>
-			<h1 class="text-sm font-medium">Dojo</h1>
+			<span class="hidden md:inline" style="color: var(--rb-border)">/</span>
+			<h1 class="text-sm font-medium" style="color: var(--text-heading)">Dojo</h1>
 		</div>
 		<div class="flex items-center gap-2 md:gap-3">
 			<button
 				onclick={logout}
-				class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+				class="text-xs transition-colors"
+				style="color: var(--text-muted)"
 			>
 				Sign out
 			</button>
-			<span class="hidden md:inline text-xs text-neutral-600">FLUX v1</span>
+			<span class="hidden md:inline text-xs" style="color: var(--text-muted)">FLUX v1</span>
 			<span
-				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle'
-					? 'bg-emerald-500'
-					: chat.agentPhase === 'error'
-						? 'bg-red-500'
-						: 'bg-amber-400 animate-pulse'}"
+				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle' ? '' : chat.agentPhase === 'error' ? '' : 'animate-pulse'}"
+				style="background: {chat.agentPhase === 'idle' ? 'var(--rb-success)' : chat.agentPhase === 'error' ? 'var(--rb-error)' : 'var(--rb-warning)'}"
 			></span>
 		</div>
 	</header>

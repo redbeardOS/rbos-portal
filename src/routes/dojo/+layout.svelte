@@ -12,14 +12,12 @@
 	const convState = new ConversationListState();
 	let sidebarOpen = $state(true);
 
-	// Start closed on mobile, open on desktop
 	$effect(() => {
 		if (browser) {
 			sidebarOpen = window.innerWidth >= 768;
 		}
 	});
 
-	// Share sidebar toggle and convState with child routes
 	setContext('sidebar', {
 		get isOpen() {
 			return sidebarOpen;
@@ -30,12 +28,10 @@
 		convState
 	});
 
-	// Load conversations on mount
 	$effect(() => {
 		convState.load();
 	});
 
-	// Sync active conversation from URL
 	$effect(() => {
 		const c = $page.url.searchParams.get('c');
 		if (c) {
@@ -46,33 +42,28 @@
 	function handleSelect(id: string) {
 		convState.setActive(id);
 		goto(`/dojo/chat?c=${id}`);
-		if (browser && window.innerWidth < 768) {
-			sidebarOpen = false;
-		}
+		if (browser && window.innerWidth < 768) sidebarOpen = false;
 	}
 
 	function handleNew() {
 		convState.setActive(null);
 		goto('/dojo/chat');
-		if (browser && window.innerWidth < 768) {
-			sidebarOpen = false;
-		}
+		if (browser && window.innerWidth < 768) sidebarOpen = false;
 	}
 
 	async function handleDelete(id: string) {
 		await convState.remove(id);
-		if (convState.activeId === null) {
-			goto('/dojo/chat');
-		}
+		if (convState.activeId === null) goto('/dojo/chat');
 	}
 </script>
 
-<div class="flex h-screen bg-neutral-950">
+<div class="flex h-screen" style="background: var(--bg-deep)">
 	<!-- Mobile backdrop -->
 	{#if sidebarOpen}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="fixed inset-0 bg-black/50 z-30 md:hidden"
+			class="fixed inset-0 z-30 md:hidden"
+			style="background: rgba(0,0,0,0.5)"
 			onclick={() => {
 				sidebarOpen = false;
 			}}
@@ -82,7 +73,7 @@
 		></div>
 	{/if}
 
-	<!-- Sidebar: fixed overlay on mobile, static push on desktop -->
+	<!-- Sidebar -->
 	<div
 		class="{sidebarOpen
 			? 'translate-x-0'
