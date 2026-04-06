@@ -79,6 +79,9 @@
 								case 'tool_result':
 									chat.completeToolCall(agentMsg.id, parsed.tool, parsed.result);
 									break;
+								case 'pr_opened':
+									chat.setPrOpened(agentMsg.id, parsed.url, parsed.number);
+									break;
 								case 'error':
 									chat.setError(agentMsg.id, parsed.message);
 									return;
