@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async () => {
 	return json({
 		status: 'ok',
-		timestamp: Date.now()
+		version: '0.2.0',
+		agents: ['FLUX', 'SAM']
 	});
 };
