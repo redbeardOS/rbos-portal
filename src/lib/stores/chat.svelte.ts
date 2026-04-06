@@ -8,6 +8,8 @@ export interface Message {
 	status: 'streaming' | 'complete' | 'error';
 	timestamp: number;
 	toolCalls?: ToolCall[];
+	prUrl?: string;
+	prNumber?: number;
 }
 
 export interface ToolCall {
@@ -80,6 +82,14 @@ export class ChatState {
 				tc.result = result;
 				tc.status = 'done';
 			}
+		}
+	}
+
+	setPrOpened(messageId: string, url: string, number: number) {
+		const msg = this.messages.find((m) => m.id === messageId);
+		if (msg) {
+			msg.prUrl = url;
+			msg.prNumber = number;
 		}
 	}
 
