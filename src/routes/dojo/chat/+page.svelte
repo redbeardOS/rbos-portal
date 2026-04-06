@@ -5,15 +5,38 @@
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import { createSupabaseBrowser } from '$lib/supabase';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { getContext } from 'svelte';
+	import type { ConversationListState } from '$lib/stores/conversations.svelte';
 
 	const chat = new ChatState();
 	setChatState(chat);
 
 	const supabase = createSupabaseBrowser();
+	const sidebar: { isOpen: boolean; toggle: () => void; convState: ConversationListState } =
+		getContext('sidebar');
 
 	async function logout() {
 		await supabase.auth.signOut();
 		goto('/dojo');
+	}
+
+	// Load conversation from URL param on mount / navigation
+	$effect(() => {
+		const c = $page.url.searchParams.get('c');
+		if (c && c !== chat.conversationId) {
+			chat.setConversationId(c);
+			loadConversation(c);
+		} else if (!c && chat.conversationId) {
+			chat.startNewConversation();
+		}
+	});
+
+	async function loadConversation(id: string) {
+		const res = await fetch(`/api/conversations/${id}/messages`);
+		if (!res.ok) return;
+		const messages = await res.json();
+		chat.loadFromHistory(messages);
 	}
 
 	async function handleSend(message: string) {
@@ -27,9 +50,9 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-						message,
-						...(chat.conversationId ? { conversationId: chat.conversationId } : {})
-					})
+					message,
+					...(chat.conversationId ? { conversationId: chat.conversationId } : {})
+				})
 			});
 
 			if (!res.ok) {
@@ -66,6 +89,20 @@
 							switch (currentEvent) {
 								case 'conversation':
 									chat.setConversationId(parsed.id);
+									// Update URL without full navigation
+									{
+										const url = new URL(window.location.href);
+										url.searchParams.set('c', parsed.id);
+										history.replaceState({}, '', url.toString());
+									}
+									// Update sidebar
+									sidebar.convState.setActive(parsed.id);
+									sidebar.convState.upsert({
+										id: parsed.id,
+										title: message.slice(0, 100),
+										created_at: new Date().toISOString(),
+										updated_at: new Date().toISOString()
+									});
 									break;
 								case 'token':
 									chat.appendToken(agentMsg.id, parsed.content);
@@ -132,9 +169,32 @@
 	<title>Dojo — RBOS Portal</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen bg-neutral-950 text-neutral-100">
-	<header class="shrink-0 border-b border-neutral-800 px-4 py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm">
+<div class="flex flex-col h-full bg-neutral-950 text-neutral-100">
+	<header
+		class="shrink-0 border-b border-neutral-800 px-4 py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm"
+	>
 		<div class="flex items-center gap-3">
+			<button
+				onclick={() => sidebar.toggle()}
+				class="text-neutral-500 hover:text-neutral-300 transition-colors"
+				title="Toggle sidebar"
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="18"
+					height="18"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<line x1="3" y1="6" x2="21" y2="6" />
+					<line x1="3" y1="12" x2="21" y2="12" />
+					<line x1="3" y1="18" x2="21" y2="18" />
+				</svg>
+			</button>
 			<a href="/" class="text-neutral-500 hover:text-neutral-300 text-sm transition-colors">
 				Portal
 			</a>
@@ -142,11 +202,20 @@
 			<h1 class="text-sm font-medium">Dojo</h1>
 		</div>
 		<div class="flex items-center gap-3">
-			<button onclick={logout} class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+			<button
+				onclick={logout}
+				class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+			>
 				Sign out
 			</button>
 			<span class="text-xs text-neutral-600">FLUX v1</span>
-			<span class="w-2 h-2 rounded-full {chat.agentPhase === 'idle' ? 'bg-emerald-500' : chat.agentPhase === 'error' ? 'bg-red-500' : 'bg-amber-400 animate-pulse'}"></span>
+			<span
+				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle'
+					? 'bg-emerald-500'
+					: chat.agentPhase === 'error'
+						? 'bg-red-500'
+						: 'bg-amber-400 animate-pulse'}"
+			></span>
 		</div>
 	</header>
 
