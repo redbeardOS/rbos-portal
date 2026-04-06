@@ -145,4 +145,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	});
 
-	return new
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}
+	});
+};
