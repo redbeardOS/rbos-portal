@@ -10,27 +10,28 @@
 
 <div class="flex {isUser ? 'justify-end' : 'justify-start'} mb-3">
 	<div
-		class="max-w-[95%] md:max-w-[80%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 {isUser
-			? 'bg-neutral-700 text-neutral-100'
-			: 'bg-neutral-800/60 text-neutral-200 border border-neutral-700/50'}"
+		class="max-w-[95%] md:max-w-[80%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 {isUser ? '' : 'border'}"
+		style="{isUser
+			? `background: var(--bg-raised); color: var(--text-heading)`
+			: `background: var(--bg-surface); color: var(--text-body); border-color: var(--rb-border)`}"
 	>
 		{#if !isUser && message.agent}
-			<div class="text-xs font-medium text-emerald-400 mb-1">{message.agent}</div>
+			<div class="text-xs font-medium mb-1" style="color: var(--accent-primary)">{message.agent}</div>
 		{/if}
 
 		{#if hasToolCalls}
 			<div class="mb-2 space-y-1">
 				{#each message.toolCalls ?? [] as tc}
 					<div
-						class="text-xs font-mono px-2 py-1 rounded bg-neutral-900/50 text-neutral-400 flex items-center gap-2"
+						class="text-xs font-mono px-2 py-1 rounded flex items-center gap-2"
+						style="background: var(--bg-deep); color: var(--text-muted)"
 					>
 						{#if tc.status === 'running'}
-							<span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse"
-							></span>
+							<span class="inline-block w-2 h-2 rounded-full animate-pulse" style="background: var(--rb-warning)"></span>
 						{:else if tc.status === 'done'}
-							<span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+							<span class="inline-block w-2 h-2 rounded-full" style="background: var(--rb-success)"></span>
 						{:else}
-							<span class="inline-block w-2 h-2 rounded-full bg-red-400"></span>
+							<span class="inline-block w-2 h-2 rounded-full" style="background: var(--rb-error)"></span>
 						{/if}
 						<span>{tc.tool}</span>
 					</div>
@@ -40,11 +41,12 @@
 
 		<div class="whitespace-pre-wrap break-words text-sm leading-relaxed">
 			{message.content}{#if isStreaming}<span
-					class="inline-block w-1.5 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle"
+					class="inline-block w-1.5 h-4 ml-0.5 animate-pulse align-middle"
+					style="background: var(--accent-primary)"
 				></span>{/if}
 		</div>
 
-		<div class="text-[10px] text-neutral-500 mt-1.5 {isUser ? 'text-right' : 'text-left'}">
+		<div class="text-[10px] mt-1.5 {isUser ? 'text-right' : 'text-left'}" style="color: var(--text-muted)">
 			{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 		</div>
 	</div>

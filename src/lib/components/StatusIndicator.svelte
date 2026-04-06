@@ -17,14 +17,14 @@
 </script>
 
 {#if isActive}
-	<div class="px-3 md:px-4 py-1.5 border-b border-neutral-800/50 bg-neutral-900/50">
+	<div class="px-3 md:px-4 py-1.5 border-b" style="border-color: color-mix(in srgb, var(--rb-border) 50%, transparent); background: var(--bg-raised)">
 		<div class="flex items-center gap-2 text-xs">
 			{#if chat.agentPhase === 'error'}
-				<span class="w-2 h-2 rounded-full bg-red-400"></span>
-				<span class="text-red-400">{chat.error ?? label}</span>
+				<span class="w-2 h-2 rounded-full" style="background: var(--rb-error)"></span>
+				<span style="color: var(--rb-error)">{chat.error ?? label}</span>
 			{:else}
-				<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-				<span class="text-neutral-400">{label}</span>
+				<span class="w-2 h-2 rounded-full animate-pulse" style="background: var(--rb-success)"></span>
+				<span style="color: var(--text-muted)">{label}</span>
 			{/if}
 		</div>
 	</div>
