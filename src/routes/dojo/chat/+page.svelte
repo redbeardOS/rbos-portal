@@ -3,9 +3,18 @@
 	import MessageList from '$lib/components/MessageList.svelte';
 	import InputBar from '$lib/components/InputBar.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+	import { createSupabaseBrowser } from '$lib/supabase';
+	import { goto } from '$app/navigation';
 
 	const chat = new ChatState();
 	setChatState(chat);
+
+	const supabase = createSupabaseBrowser();
+
+	async function logout() {
+		await supabase.auth.signOut();
+		goto('/dojo');
+	}
 
 	async function handleSend(message: string) {
 		chat.clearError();
@@ -111,7 +120,10 @@
 			<span class="text-neutral-700">/</span>
 			<h1 class="text-sm font-medium">Dojo</h1>
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-3">
+			<button onclick={logout} class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+				Sign out
+			</button>
 			<span class="text-xs text-neutral-600">FLUX v1</span>
 			<span class="w-2 h-2 rounded-full {chat.agentPhase === 'idle' ? 'bg-emerald-500' : chat.agentPhase === 'error' ? 'bg-red-500' : 'bg-amber-400 animate-pulse'}"></span>
 		</div>
