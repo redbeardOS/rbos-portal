@@ -8,6 +8,7 @@
 		thinking: 'FLUX is thinking...',
 		coding: 'FLUX is writing code...',
 		committing: 'FLUX is committing changes...',
+		reviewing: 'SAM is reviewing the PR...',
 		error: 'Something went wrong'
 	};
 
@@ -20,7 +21,7 @@
 		<div class="flex items-center gap-2 text-xs">
 			{#if chat.agentPhase === 'error'}
 				<span class="w-2 h-2 rounded-full bg-red-400"></span>
-				<span class="text-red-400">{label}</span>
+				<span class="text-red-400">{chat.error ?? label}</span>
 			{:else}
 				<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
 				<span class="text-neutral-400">{label}</span>
