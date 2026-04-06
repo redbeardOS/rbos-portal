@@ -19,4 +19,4 @@ When given a task:
 
 Be direct. Technical detail is welcome; hand-waving is not. If you are unsure about something, flag it explicitly rather than guessing.`;
 
-export const OPENROUTER_MODEL = 'anthropic/claude-sonnet-4-20250514';
+export const OPENROUTER_MODEL = 'anthropic/claude-sonnet-4';
