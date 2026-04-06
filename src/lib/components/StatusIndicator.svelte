@@ -17,7 +17,7 @@
 </script>
 
 {#if isActive}
-	<div class="px-4 py-1.5 border-b border-neutral-800/50 bg-neutral-900/50">
+	<div class="px-3 md:px-4 py-1.5 border-b border-neutral-800/50 bg-neutral-900/50">
 		<div class="flex items-center gap-2 text-xs">
 			{#if chat.agentPhase === 'error'}
 				<span class="w-2 h-2 rounded-full bg-red-400"></span>

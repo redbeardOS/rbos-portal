@@ -168,9 +168,9 @@
 
 <div class="flex flex-col h-full bg-neutral-950 text-neutral-100">
 	<header
-		class="shrink-0 border-b border-neutral-800 px-4 py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm"
+		class="shrink-0 border-b border-neutral-800 px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm"
 	>
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2 md:gap-3">
 			<button
 				onclick={() => sidebar.toggle()}
 				class="text-neutral-500 hover:text-neutral-300 transition-colors"
@@ -192,20 +192,20 @@
 					<line x1="3" y1="18" x2="21" y2="18" />
 				</svg>
 			</button>
-			<a href="/" class="text-neutral-500 hover:text-neutral-300 text-sm transition-colors">
+			<a href="/" class="hidden md:inline text-neutral-500 hover:text-neutral-300 text-sm transition-colors">
 				Portal
 			</a>
-			<span class="text-neutral-700">/</span>
+			<span class="hidden md:inline text-neutral-700">/</span>
 			<h1 class="text-sm font-medium">Dojo</h1>
 		</div>
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2 md:gap-3">
 			<button
 				onclick={logout}
 				class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
 			>
 				Sign out
 			</button>
-			<span class="text-xs text-neutral-600">FLUX v1</span>
+			<span class="hidden md:inline text-xs text-neutral-600">FLUX v1</span>
 			<span
 				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle'
 					? 'bg-emerald-500'

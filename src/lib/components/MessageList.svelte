@@ -30,7 +30,7 @@
 <div
 	bind:this={container}
 	onscroll={handleScroll}
-	class="flex-1 overflow-y-auto px-4 py-6 scroll-smooth"
+	class="flex-1 overflow-y-auto px-3 md:px-4 py-4 md:py-6 scroll-smooth"
 >
 	{#if chat.messages.length === 0}
 		<div class="flex items-center justify-center h-full">
