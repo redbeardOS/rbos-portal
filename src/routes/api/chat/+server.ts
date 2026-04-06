@@ -7,13 +7,16 @@
  *   3. If Claude returns tool_calls, execute them (with deny-list filter)
  *   4. Send tool results back to Claude and repeat from step 2
  *   5. When Claude responds with pure text (no tool_calls), emit done
+ *   6. If FLUX opened a PR, trigger SAM review
  *
- * SSE events: conversation, status, token, tool_call, tool_result, pr_opened, done, error
+ * SSE events: conversation, status, token, tool_call, tool_result,
+ *             pr_opened, agent_start, sam_token, sam_done, sam_error, done, error
  */
 
 import { FLUX_SYSTEM_PROMPT, OPENROUTER_MODEL } from '$lib/server/flux-prompt';
 import { TOOL_DEFINITIONS, TaskContext, executeTool } from '$lib/server/tools';
 import { getSupabase } from '$lib/server/supabase';
+import { reviewPr, postPrComment } from '$lib/server/sam';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
@@ -48,6 +51,34 @@ interface StreamDelta {
 
 // Max tool-use iterations to prevent infinite loops
 const MAX_ITERATIONS = 15;
+
+// Per-iteration timeout (60 seconds)
+const ITERATION_TIMEOUT = 60_000;
+
+/**
+ * Fetch with retry for transient failures (429, 502, 503, 504).
+ * Exponential backoff: 1s, 2s, 4s.
+ */
+async function fetchWithRetry(
+	url: string,
+	init: RequestInit,
+	maxRetries = 3
+): Promise<Response> {
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		const res = await fetch(url, init);
+		if (res.ok || attempt === maxRetries) return res;
+
+		const status = res.status;
+		// Only retry on transient errors
+		if (![429, 502, 503, 504].includes(status)) return res;
+
+		// Wait with exponential backoff
+		const delay = Math.pow(2, attempt) * 1000;
+		await new Promise((r) => setTimeout(r, delay));
+	}
+	// Unreachable, but TypeScript wants it
+	throw new Error('fetchWithRetry: exhausted retries');
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	const apiKey = env.OPENROUTER_API_KEY;
@@ -97,12 +128,19 @@ export const POST: RequestHandler = async ({ request }) => {
 		.eq('conversation_id', convId)
 		.order('created_at', { ascending: true });
 
-	const history: ChatMessage[] = (rows ?? []).map((r: { role: string; content: string | null; tool_calls: ToolCall[] | null; tool_call_id: string | null }) => ({
-		role: r.role as ChatMessage['role'],
-		content: r.content,
-		tool_calls: r.tool_calls ?? undefined,
-		tool_call_id: r.tool_call_id ?? undefined
-	}));
+	const history: ChatMessage[] = (rows ?? []).map(
+		(r: {
+			role: string;
+			content: string | null;
+			tool_calls: ToolCall[] | null;
+			tool_call_id: string | null;
+		}) => ({
+			role: r.role as ChatMessage['role'],
+			content: r.content,
+			tool_calls: r.tool_calls ?? undefined,
+			tool_call_id: r.tool_call_id ?? undefined
+		})
+	);
 
 	// Add user message to history and persist
 	history.push({ role: 'user', content: message });
@@ -113,14 +151,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 
 	// Create a task context — derive slug from first few words of the message
-	const slug = message
-		.toLowerCase()
-		.replace(/[^a-z0-9\s]/g, '')
-		.trim()
-		.split(/\s+/)
-		.slice(0, 4)
-		.join('-')
-		|| 'task';
+	const slug =
+		message
+			.toLowerCase()
+			.replace(/[^a-z0-9\s]/g, '')
+			.trim()
+			.split(/\s+/)
+			.slice(0, 4)
+			.join('-') || 'task';
 	const ctx = new TaskContext(slug);
 
 	const encoder = new TextEncoder();
@@ -152,30 +190,63 @@ export const POST: RequestHandler = async ({ request }) => {
 						phase: iteration === 1 ? 'thinking' : 'coding'
 					});
 
-					// Call OpenRouter with streaming
-					const upstream = await fetch(
-						'https://openrouter.ai/api/v1/chat/completions',
-						{
-							method: 'POST',
-							headers: {
-								Authorization: `Bearer ${apiKey}`,
-								'Content-Type': 'application/json',
-								'HTTP-Referer': 'https://rbos-portal.vercel.app',
-								'X-Title': 'RBOS Portal - Dojo'
-							},
-							body: JSON.stringify({
-								model: OPENROUTER_MODEL,
-								messages,
-								tools: TOOL_DEFINITIONS,
-								stream: true,
-								max_tokens: 4096
-							})
-						}
+					// Set up abort controller for timeout
+					const abortController = new AbortController();
+					const timeout = setTimeout(
+						() => abortController.abort(),
+						ITERATION_TIMEOUT
 					);
 
+					let upstream: Response;
+					try {
+						upstream = await fetchWithRetry(
+							'https://openrouter.ai/api/v1/chat/completions',
+							{
+								method: 'POST',
+								headers: {
+									Authorization: `Bearer ${apiKey}`,
+									'Content-Type': 'application/json',
+									'HTTP-Referer': 'https://rbos-portal.vercel.app',
+									'X-Title': 'RBOS Portal - Dojo'
+								},
+								body: JSON.stringify({
+									model: OPENROUTER_MODEL,
+									messages,
+									tools: TOOL_DEFINITIONS,
+									stream: true,
+									max_tokens: 8192
+								}),
+								signal: abortController.signal
+							}
+						);
+					} catch (err) {
+						clearTimeout(timeout);
+						if (
+							err instanceof DOMException &&
+							err.name === 'AbortError'
+						) {
+							emit('error', {
+								message:
+									'Request timed out. Try a simpler task or try again.'
+							});
+						} else {
+							const errMsg =
+								err instanceof Error
+									? err.message
+									: 'Fetch error';
+							emit('error', { message: errMsg });
+						}
+						break;
+					}
+
 					if (!upstream.ok) {
+						clearTimeout(timeout);
 						const errText = await upstream.text();
-						console.error('OpenRouter error:', upstream.status, errText);
+						console.error(
+							'OpenRouter error:',
+							upstream.status,
+							errText
+						);
 						emit('error', {
 							message: `OpenRouter returned ${upstream.status}`
 						});
@@ -184,7 +255,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 					const reader = upstream.body?.getReader();
 					if (!reader) {
-						emit('error', { message: 'No response body from upstream' });
+						clearTimeout(timeout);
+						emit('error', {
+							message: 'No response body from upstream'
+						});
 						break;
 					}
 
@@ -219,7 +293,9 @@ export const POST: RequestHandler = async ({ request }) => {
 								// Accumulate text content
 								if (delta.content) {
 									assistantContent += delta.content;
-									emit('token', { content: delta.content });
+									emit('token', {
+										content: delta.content
+									});
 								}
 
 								// Accumulate tool calls
@@ -235,9 +311,11 @@ export const POST: RequestHandler = async ({ request }) => {
 										}
 										const entry = toolCallsMap.get(idx)!;
 										if (tc.id) entry.id = tc.id;
-										if (tc.function?.name) entry.name = tc.function.name;
+										if (tc.function?.name)
+											entry.name = tc.function.name;
 										if (tc.function?.arguments) {
-											entry.arguments += tc.function.arguments;
+											entry.arguments +=
+												tc.function.arguments;
 										}
 									}
 								}
@@ -247,13 +325,20 @@ export const POST: RequestHandler = async ({ request }) => {
 						}
 					}
 
+					clearTimeout(timeout);
+
 					// Convert accumulated tool calls to array
-					const toolCalls: ToolCall[] = Array.from(toolCallsMap.values())
+					const toolCalls: ToolCall[] = Array.from(
+						toolCallsMap.values()
+					)
 						.filter((tc) => tc.id && tc.name)
 						.map((tc) => ({
 							id: tc.id,
 							type: 'function' as const,
-							function: { name: tc.name, arguments: tc.arguments }
+							function: {
+								name: tc.name,
+								arguments: tc.arguments
+							}
 						}));
 
 					// Store assistant message in history and persist
@@ -270,7 +355,8 @@ export const POST: RequestHandler = async ({ request }) => {
 						conversation_id: convId,
 						role: 'assistant',
 						content: assistantContent || null,
-						tool_calls: toolCalls.length > 0 ? toolCalls : null,
+						tool_calls:
+							toolCalls.length > 0 ? toolCalls : null,
 						agent: 'FLUX'
 					});
 
@@ -346,14 +432,62 @@ export const POST: RequestHandler = async ({ request }) => {
 						message: 'Agent reached maximum tool-use iterations'
 					});
 				}
+
+				// ── SAM Review ──────────────────────────────────
+				if (ctx.prResult) {
+					emit('status', { phase: 'reviewing' });
+					emit('agent_start', { agent: 'SAM' });
+
+					try {
+						const { verdict, review } = await reviewPr(
+							ctx.prResult.number,
+							ctx.prResult.title,
+							(token) => emit('sam_token', { content: token })
+						);
+
+						emit('sam_done', { verdict });
+
+						// Post as PR comment on GitHub
+						await postPrComment(
+							ctx.prResult.number,
+							review,
+							verdict
+						);
+
+						// Persist SAM's review
+						await supabase.from('messages').insert({
+							conversation_id: convId,
+							role: 'assistant',
+							content: review,
+							agent: 'SAM'
+						});
+					} catch (err) {
+						const msg =
+							err instanceof Error
+								? err.message
+								: 'SAM review failed';
+						emit('sam_error', { message: msg });
+					}
+				}
 			} catch (err) {
-				const errMsg =
-					err instanceof Error ? err.message : 'Stream error';
-				controller.enqueue(
-					encoder.encode(
-						`event: error\ndata: ${JSON.stringify({ message: errMsg })}\n\n`
-					)
-				);
+				if (
+					err instanceof DOMException &&
+					err.name === 'AbortError'
+				) {
+					controller.enqueue(
+						encoder.encode(
+							`event: error\ndata: ${JSON.stringify({ message: 'Request timed out. Try a simpler task or try again.' })}\n\n`
+						)
+					);
+				} else {
+					const errMsg =
+						err instanceof Error ? err.message : 'Stream error';
+					controller.enqueue(
+						encoder.encode(
+							`event: error\ndata: ${JSON.stringify({ message: errMsg })}\n\n`
+						)
+					);
+				}
 			} finally {
 				controller.close();
 			}
@@ -368,3 +502,4 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	});
 };
+

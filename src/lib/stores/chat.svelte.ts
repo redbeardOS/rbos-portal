@@ -8,6 +8,8 @@ export interface Message {
 	status: 'streaming' | 'complete' | 'error';
 	timestamp: number;
 	toolCalls?: ToolCall[];
+	prUrl?: string;
+	prNumber?: number;
 }
 
 export interface ToolCall {
@@ -17,7 +19,7 @@ export interface ToolCall {
 	status: 'running' | 'done' | 'error';
 }
 
-export type AgentPhase = 'idle' | 'thinking' | 'coding' | 'committing' | 'error';
+export type AgentPhase = 'idle' | 'thinking' | 'coding' | 'committing' | 'reviewing' | 'error';
 
 export class ChatState {
 	messages = $state<Message[]>([]);
@@ -66,6 +68,20 @@ export class ChatState {
 		return msg;
 	}
 
+	startSamReview(): Message {
+		const msg: Message = {
+			id: crypto.randomUUID(),
+			role: 'agent',
+			agent: 'SAM',
+			content: '',
+			status: 'streaming',
+			timestamp: Date.now()
+		};
+		this.messages.push(msg);
+		this.agentPhase = 'reviewing';
+		return msg;
+	}
+
 	appendToken(messageId: string, token: string) {
 		const msg = this.messages.find((m) => m.id === messageId);
 		if (msg) {
@@ -93,6 +109,14 @@ export class ChatState {
 				tc.result = result;
 				tc.status = 'done';
 			}
+		}
+	}
+
+	setPrOpened(messageId: string, url: string, number: number) {
+		const msg = this.messages.find((m) => m.id === messageId);
+		if (msg) {
+			msg.prUrl = url;
+			msg.prNumber = number;
 		}
 	}
 

@@ -56,6 +56,7 @@ This file is the consumable specification. The tool execution layer reads these 
 
 **Allowlist (initial):**
 - Anthropic API (`api.anthropic.com`)
+- OpenRouter API (`openrouter.ai`)
 - GitHub API (`api.github.com`)
 - npm registry (`registry.npmjs.org`)
 - Supabase project endpoint (when configured)

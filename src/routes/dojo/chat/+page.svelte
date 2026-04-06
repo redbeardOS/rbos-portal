@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChatState, setChatState } from '$lib/stores/chat.svelte';
+	import { ChatState, setChatState, type Message } from '$lib/stores/chat.svelte';
 	import MessageList from '$lib/components/MessageList.svelte';
 	import InputBar from '$lib/components/InputBar.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
@@ -20,6 +20,7 @@
 		chat.clearError();
 		chat.addUserMessage(message);
 		const agentMsg = chat.startAgentMessage('FLUX');
+		let samMsg: Message | null = null;
 
 		try {
 			const res = await fetch('/api/chat', {
@@ -78,11 +79,34 @@
 								case 'tool_result':
 									chat.completeToolCall(agentMsg.id, parsed.tool, parsed.result);
 									break;
+								case 'pr_opened':
+									chat.setPrOpened(agentMsg.id, parsed.url, parsed.number);
+									break;
 								case 'error':
 									chat.setError(agentMsg.id, parsed.message);
 									return;
 								case 'done':
 									chat.completeAgentMessage(agentMsg.id);
+									break;
+								case 'agent_start':
+									if (parsed.agent === 'SAM') {
+										samMsg = chat.startSamReview();
+									}
+									break;
+								case 'sam_token':
+									if (samMsg) chat.appendToken(samMsg.id, parsed.content);
+									break;
+								case 'sam_done':
+									if (samMsg) {
+										chat.completeAgentMessage(samMsg.id);
+										samMsg = null;
+									}
+									break;
+								case 'sam_error':
+									if (samMsg) {
+										chat.setError(samMsg.id, parsed.message);
+										samMsg = null;
+									}
 									break;
 							}
 						} catch {
