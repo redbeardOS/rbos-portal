@@ -10,7 +10,7 @@
 
 <div class="flex {isUser ? 'justify-end' : 'justify-start'} mb-3">
 	<div
-		class="max-w-[80%] rounded-2xl px-4 py-3 {isUser
+		class="max-w-[95%] md:max-w-[80%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 {isUser
 			? 'bg-neutral-700 text-neutral-100'
 			: 'bg-neutral-800/60 text-neutral-200 border border-neutral-700/50'}"
 	>
