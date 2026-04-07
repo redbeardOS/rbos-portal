@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getChatState } from '$lib/stores/chat.svelte';
+	import { agentState } from '$lib/stores/agents.svelte';
 
 	let { onSend }: { onSend: (message: string) => void } = $props();
 
@@ -54,7 +55,9 @@
 			bind:value={input}
 			onkeydown={handleKeydown}
 			oninput={autoResize}
-			placeholder={chat.isStreaming ? 'FLUX is working...' : 'Message FLUX...'}
+			placeholder={chat.isStreaming
+				? `${agentState.selected?.name ?? 'Agent'} is working...`
+				: `Message ${agentState.selected?.name ?? 'FLUX'}...`}
 			disabled={chat.isStreaming}
 			rows={1}
 			class="flex-1 resize-none rounded-xl border px-3 md:px-4 py-2.5 text-base focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

@@ -13,8 +13,8 @@
  *             pr_opened, agent_start, sam_token, sam_done, sam_error, done, error
  */
 
-import { FLUX_SYSTEM_PROMPT, OPENROUTER_MODEL } from '$lib/server/flux-prompt';
-import { TOOL_DEFINITIONS, TaskContext, executeTool } from '$lib/server/tools';
+import { getAgent, DEFAULT_AGENT_ID, OPENROUTER_MODEL } from '$lib/server/agents/registry';
+import { TaskContext, executeTool, getToolsForAgent } from '$lib/server/tools';
 import { getSupabase } from '$lib/server/supabase';
 import { reviewPr, postPrComment } from '$lib/server/sam';
 import { sendPushToUser } from '$lib/server/push-notify';
@@ -92,9 +92,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json();
-	const { message, conversationId } = body as {
+	const { message, conversationId, agent: agentId } = body as {
 		message: string;
 		conversationId?: string;
+		agent?: string;
 	};
 
 	if (!message?.trim()) {
@@ -103,6 +104,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			{ status: 400, headers: { 'Content-Type': 'application/json' } }
 		);
 	}
+
+	// Resolve agent
+	const resolvedAgentId = agentId ?? DEFAULT_AGENT_ID;
+	const agentConfig = getAgent(resolvedAgentId);
+	if (!agentConfig) {
+		return new Response(
+			JSON.stringify({ error: `Unknown agent: ${resolvedAgentId}` }),
+			{ status: 400, headers: { 'Content-Type': 'application/json' } }
+		);
+	}
+	if (!agentConfig.selectable) {
+		return new Response(
+			JSON.stringify({ error: `Agent "${resolvedAgentId}" is not directly selectable` }),
+			{ status: 400, headers: { 'Content-Type': 'application/json' } }
+		);
+	}
+
+	const agentTools = getToolsForAgent(resolvedAgentId);
 
 	const supabase = getSupabase();
 
@@ -161,7 +180,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			.split(/\s+/)
 			.slice(0, 4)
 			.join('-') || 'task';
-	const ctx = new TaskContext(slug);
+	const ctx = new TaskContext(slug, resolvedAgentId);
 
 	const encoder = new TextEncoder();
 
@@ -184,7 +203,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 					// Build messages for this API call
 					const messages: ChatMessage[] = [
-						{ role: 'system', content: FLUX_SYSTEM_PROMPT },
+						{ role: 'system', content: agentConfig.systemPrompt },
 						...history
 					];
 
@@ -214,7 +233,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								body: JSON.stringify({
 									model: OPENROUTER_MODEL,
 									messages,
-									tools: TOOL_DEFINITIONS,
+									tools: agentTools.length > 0 ? agentTools : undefined,
 									stream: true,
 									max_tokens: 8192
 								}),
@@ -359,7 +378,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						content: assistantContent || null,
 						tool_calls:
 							toolCalls.length > 0 ? toolCalls : null,
-						agent: 'FLUX'
+						agent: agentConfig.name
 					});
 
 					// If no tool calls, we're done
