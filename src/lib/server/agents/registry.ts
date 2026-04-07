@@ -20,6 +20,10 @@ export interface AgentConfig {
 
 import { FLUX_CONFIG } from './flux';
 import { SAM_CONFIG } from './sam';
+import { DOC_CONFIG } from './doc';
+import { IOIO_CONFIG } from './ioio';
+import { QAE_CONFIG } from './qae';
+import { UXUI_CONFIG } from './uxui';
 
 /**
  * Master agent registry.
@@ -27,7 +31,11 @@ import { SAM_CONFIG } from './sam';
  */
 export const AGENTS = new Map<string, AgentConfig>([
 	['flux', FLUX_CONFIG],
-	['sam', SAM_CONFIG]
+	['sam', SAM_CONFIG],
+	['doc', DOC_CONFIG],
+	['ioio', IOIO_CONFIG],
+	['qae', QAE_CONFIG],
+	['uxui', UXUI_CONFIG]
 ]);
 
 export function getSelectableAgents(): AgentConfig[] {
