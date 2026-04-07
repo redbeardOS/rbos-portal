@@ -93,7 +93,7 @@
 	async function handleSend(message: string) {
 		chat.clearError();
 		chat.addUserMessage(message);
-		const agentMsg = chat.startAgentMessage('FLUX');
+		const agentMsg = chat.startAgentMessage(agentState.selected?.name ?? 'FLUX');
 		let samMsg: Message | null = null;
 		let lastPrUrl = '';
 		let lastPrNumber = 0;
