@@ -17,6 +17,7 @@ import { FLUX_SYSTEM_PROMPT, OPENROUTER_MODEL } from '$lib/server/flux-prompt';
 import { TOOL_DEFINITIONS, TaskContext, executeTool } from '$lib/server/tools';
 import { getSupabase } from '$lib/server/supabase';
 import { reviewPr, postPrComment } from '$lib/server/sam';
+import { sendPushToUser } from '$lib/server/push-notify';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
@@ -80,7 +81,8 @@ async function fetchWithRetry(
 	throw new Error('fetchWithRetry: exhausted retries');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const userId = locals.session?.user?.id;
 	const apiKey = env.OPENROUTER_API_KEY;
 	if (!apiKey) {
 		return new Response(
@@ -402,6 +404,16 @@ export const POST: RequestHandler = async ({ request }) => {
 								url: result.prOpened.url,
 								number: result.prOpened.number
 							});
+
+							// Push notification (fire-and-forget)
+							if (userId) {
+								sendPushToUser(userId, {
+									title: 'FLUX opened a PR',
+									body: `PR #${result.prOpened.number} is ready for review`,
+									url: `/dojo/chat?c=${convId}`,
+									tag: `pr-${result.prOpened.number}`
+								}).catch(() => {});
+							}
 						}
 
 						// Add tool result to history and persist
@@ -446,6 +458,21 @@ export const POST: RequestHandler = async ({ request }) => {
 						);
 
 						emit('sam_done', { verdict });
+
+						// Push notification for SAM review (fire-and-forget)
+						if (userId && ctx.prResult) {
+							sendPushToUser(userId, {
+								title:
+									verdict === 'APPROVE'
+										? '✅ SAM approved the PR'
+										: verdict === 'REQUEST_CHANGES'
+											? '⚠️ SAM requested changes'
+											: '💬 SAM reviewed the PR',
+								body: `PR #${ctx.prResult.number} — ${verdict.toLowerCase().replace('_', ' ')}`,
+								url: `/dojo/chat?c=${convId}`,
+								tag: `sam-${ctx.prResult.number}`
+							}).catch(() => {});
+						}
 
 						// Post as PR comment on GitHub
 						await postPrComment(
