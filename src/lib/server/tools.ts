@@ -20,6 +20,7 @@ import {
 	type FileChange,
 	type PrResult
 } from './github';
+import { getAgent, DEFAULT_AGENT_ID } from './agents/registry';
 
 // ── OpenAI-compatible tool definitions ─────────────────────────
 
@@ -197,14 +198,27 @@ function checkDenyList(tool: string, args: Record<string, unknown>): DenyResult 
  * Holds the state for a single agent task execution.
  * Tracks the working branch and pending file changes.
  */
+/**
+ * Get tool definitions filtered for a specific agent.
+ */
+export function getToolsForAgent(agentId: string): typeof TOOL_DEFINITIONS {
+	const agent = getAgent(agentId);
+	if (!agent) return TOOL_DEFINITIONS;
+	return TOOL_DEFINITIONS.filter((t) => agent.tools.includes(t.function.name));
+}
+
 export class TaskContext {
 	branch: string;
+	agentId: string;
 	pendingFiles: Map<string, string> = new Map();
 	branchCreated = false;
 	prResult: PrResult | null = null;
 
-	constructor(taskSlug: string) {
-		this.branch = `flux/${taskSlug}`;
+	constructor(taskSlug: string, agentId: string = DEFAULT_AGENT_ID) {
+		this.agentId = agentId;
+		const agent = getAgent(agentId);
+		const prefix = agent?.branchPrefix ?? 'flux/';
+		this.branch = `${prefix}${taskSlug}`;
 	}
 
 	/** Ensure the working branch exists. */

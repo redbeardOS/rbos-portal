@@ -5,6 +5,8 @@
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import { createSupabaseBrowser } from '$lib/supabase';
 	import { subscribeToPush, isPushSubscribed } from '$lib/push';
+	import AgentSelector from '$lib/components/AgentSelector.svelte';
+	import { agentState } from '$lib/stores/agents.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { getContext } from 'svelte';
@@ -17,6 +19,11 @@
 	const supabase = createSupabaseBrowser();
 	const sidebar: { isOpen: boolean; toggle: () => void; convState: ConversationListState } =
 		getContext('sidebar');
+
+	// Load agents on mount
+	$effect(() => {
+		agentState.load();
+	});
 
 	let showPushPrompt = $state(false);
 
@@ -97,6 +104,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					message,
+					agent: agentState.selectedId,
 					...(chat.conversationId ? { conversationId: chat.conversationId } : {})
 				})
 			});
@@ -244,6 +252,8 @@
 			</a>
 			<span class="hidden md:inline" style="color: var(--rb-border)">/</span>
 			<h1 class="text-sm font-medium" style="color: var(--text-heading)">Dojo</h1>
+			<span style="color: var(--rb-border)">/</span>
+			<AgentSelector />
 		</div>
 		<div class="flex items-center gap-2 md:gap-3">
 			<button
