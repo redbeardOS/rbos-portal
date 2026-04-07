@@ -4,9 +4,11 @@
 	import InputBar from '$lib/components/InputBar.svelte';
 	import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 	import { createSupabaseBrowser } from '$lib/supabase';
+	import { subscribeToPush, isPushSubscribed } from '$lib/push';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { getContext } from 'svelte';
+	import { browser } from '$app/environment';
 	import type { ConversationListState } from '$lib/stores/conversations.svelte';
 
 	const chat = new ChatState();
@@ -15,6 +17,30 @@
 	const supabase = createSupabaseBrowser();
 	const sidebar: { isOpen: boolean; toggle: () => void; convState: ConversationListState } =
 		getContext('sidebar');
+
+	let showPushPrompt = $state(false);
+
+	// Check push status on mount
+	$effect(() => {
+		if (browser) {
+			isPushSubscribed().then((subscribed) => {
+				if (!subscribed && Notification.permission === 'default') {
+					setTimeout(() => {
+						showPushPrompt = true;
+					}, 3000);
+				}
+			});
+		}
+	});
+
+	async function enablePush() {
+		await subscribeToPush();
+		showPushPrompt = false;
+	}
+
+	function dismissPush() {
+		showPushPrompt = false;
+	}
 
 	async function logout() {
 		await supabase.auth.signOut();
@@ -251,5 +277,30 @@
 
 	<StatusIndicator />
 	<MessageList />
+	{#if showPushPrompt}
+		<div
+			class="mx-3 mb-2 rounded-xl border p-3 flex items-center justify-between"
+			style="border-color: var(--rb-border); background: var(--bg-raised)"
+		>
+			<div class="flex items-center gap-2">
+				<span class="text-sm">🔔</span>
+				<span class="text-xs" style="color: var(--text-body)">
+					Get notified when agents need your attention?
+				</span>
+			</div>
+			<div class="flex gap-2">
+				<button
+					onclick={enablePush}
+					class="text-xs font-medium px-2 py-1 rounded"
+					style="color: var(--accent-primary)">Enable</button
+				>
+				<button
+					onclick={dismissPush}
+					class="text-xs px-2 py-1 rounded"
+					style="color: var(--text-muted)">Later</button
+				>
+			</div>
+		</div>
+	{/if}
 	<InputBar onSend={handleSend} />
 </div>
