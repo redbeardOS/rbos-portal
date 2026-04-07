@@ -57,7 +57,7 @@
 	}
 </script>
 
-<div class="flex h-screen" style="background: var(--bg-deep)">
+<div class="flex h-screen pwa-safe" style="background: var(--bg-deep)">
 	<!-- Mobile backdrop -->
 	{#if sidebarOpen}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->

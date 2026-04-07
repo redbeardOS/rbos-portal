@@ -1,11 +1,18 @@
 <script lang="ts">
 	import type { Message } from '$lib/stores/chat.svelte';
+	import PrActionCard from './PrActionCard.svelte';
 
 	let { message }: { message: Message } = $props();
 
 	const isUser = $derived(message.role === 'user');
 	const isStreaming = $derived(message.status === 'streaming');
 	const hasToolCalls = $derived((message.toolCalls?.length ?? 0) > 0);
+	const showPrCard = $derived(
+		message.agent === 'SAM' &&
+			message.verdict !== undefined &&
+			message.prNumber !== undefined &&
+			message.status === 'complete'
+	);
 </script>
 
 <div class="flex {isUser ? 'justify-end' : 'justify-start'} mb-3">
@@ -50,4 +57,9 @@
 			{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 		</div>
 	</div>
+	{#if showPrCard}
+		<div class="mt-1 max-w-[95%] md:max-w-[80%]">
+			<PrActionCard {message} />
+		</div>
+	{/if}
 </div>
