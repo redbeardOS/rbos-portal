@@ -175,3 +175,11 @@
   --rb-perm-write: #5a7080;
   --rb-perm-read: #8a7a3a;
 }
+
+/* PWA safe area support */
+.pwa-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}

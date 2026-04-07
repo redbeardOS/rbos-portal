@@ -39,11 +39,31 @@
 		chat.loadFromHistory(messages);
 	}
 
+	// Poll for new messages when not streaming (cross-device sync)
+	$effect(() => {
+		let interval: ReturnType<typeof setInterval> | null = null;
+		if (chat.conversationId && !chat.isStreaming) {
+			interval = setInterval(async () => {
+				const res = await fetch(`/api/conversations/${chat.conversationId}/messages`);
+				if (!res.ok) return;
+				const messages = await res.json();
+				if (messages.length > chat.messages.length) {
+					chat.loadFromHistory(messages);
+				}
+			}, 5000);
+		}
+		return () => {
+			if (interval) clearInterval(interval);
+		};
+	});
+
 	async function handleSend(message: string) {
 		chat.clearError();
 		chat.addUserMessage(message);
 		const agentMsg = chat.startAgentMessage('FLUX');
 		let samMsg: Message | null = null;
+		let lastPrUrl = '';
+		let lastPrNumber = 0;
 
 		try {
 			const res = await fetch('/api/chat', {
@@ -116,6 +136,11 @@
 								case 'tool_result':
 									chat.completeToolCall(agentMsg.id, parsed.tool, parsed.result);
 									break;
+								case 'pr_opened':
+									chat.setPrOpened(agentMsg.id, parsed.url, parsed.number);
+									lastPrUrl = parsed.url;
+									lastPrNumber = parsed.number;
+									break;
 								case 'error':
 									chat.setError(agentMsg.id, parsed.message);
 									return;
@@ -132,6 +157,10 @@
 									break;
 								case 'sam_done':
 									if (samMsg) {
+										chat.setVerdict(samMsg.id, parsed.verdict);
+										if (lastPrNumber) {
+											chat.setPrOpened(samMsg.id, lastPrUrl, lastPrNumber);
+										}
 										chat.completeAgentMessage(samMsg.id);
 										samMsg = null;
 									}
@@ -191,6 +220,20 @@
 			<h1 class="text-sm font-medium" style="color: var(--text-heading)">Dojo</h1>
 		</div>
 		<div class="flex items-center gap-2 md:gap-3">
+			<button
+				onclick={() => {
+					if (chat.conversationId) loadConversation(chat.conversationId);
+				}}
+				class="text-xs transition-colors"
+				style="color: var(--text-muted)"
+				title="Refresh messages"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="23 4 23 10 17 10" />
+					<polyline points="1 20 1 14 7 14" />
+					<path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+				</svg>
+			</button>
 			<button
 				onclick={logout}
 				class="text-xs transition-colors"
