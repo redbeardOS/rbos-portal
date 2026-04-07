@@ -39,11 +39,31 @@
 		chat.loadFromHistory(messages);
 	}
 
+	// Poll for new messages when not streaming (cross-device sync)
+	$effect(() => {
+		let interval: ReturnType<typeof setInterval> | null = null;
+		if (chat.conversationId && !chat.isStreaming) {
+			interval = setInterval(async () => {
+				const res = await fetch(`/api/conversations/${chat.conversationId}/messages`);
+				if (!res.ok) return;
+				const messages = await res.json();
+				if (messages.length > chat.messages.length) {
+					chat.loadFromHistory(messages);
+				}
+			}, 5000);
+		}
+		return () => {
+			if (interval) clearInterval(interval);
+		};
+	});
+
 	async function handleSend(message: string) {
 		chat.clearError();
 		chat.addUserMessage(message);
 		const agentMsg = chat.startAgentMessage('FLUX');
 		let samMsg: Message | null = null;
+		let lastPrUrl = '';
+		let lastPrNumber = 0;
 
 		try {
 			const res = await fetch('/api/chat', {
@@ -118,6 +138,8 @@
 									break;
 								case 'pr_opened':
 									chat.setPrOpened(agentMsg.id, parsed.url, parsed.number);
+									lastPrUrl = parsed.url;
+									lastPrNumber = parsed.number;
 									break;
 								case 'error':
 									chat.setError(agentMsg.id, parsed.message);
@@ -135,6 +157,10 @@
 									break;
 								case 'sam_done':
 									if (samMsg) {
+										chat.setVerdict(samMsg.id, parsed.verdict);
+										if (lastPrNumber) {
+											chat.setPrOpened(samMsg.id, lastPrUrl, lastPrNumber);
+										}
 										chat.completeAgentMessage(samMsg.id);
 										samMsg = null;
 									}
@@ -169,52 +195,56 @@
 	<title>Dojo — RBOS Portal</title>
 </svelte:head>
 
-<div class="flex flex-col h-full bg-neutral-950 text-neutral-100">
+<div class="flex flex-col h-full" style="background: var(--bg-surface); color: var(--text-body)">
 	<header
-		class="shrink-0 border-b border-neutral-800 px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between bg-neutral-950/90 backdrop-blur-sm"
+		class="shrink-0 border-b px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between backdrop-blur-sm"
+		style="border-color: var(--rb-border); background: var(--bg-deep)"
 	>
 		<div class="flex items-center gap-2 md:gap-3">
 			<button
 				onclick={() => sidebar.toggle()}
-				class="text-neutral-500 hover:text-neutral-300 transition-colors"
+				class="transition-colors"
+				style="color: var(--text-muted)"
 				title="Toggle sidebar"
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="18"
-					height="18"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="3" y1="6" x2="21" y2="6" />
 					<line x1="3" y1="12" x2="21" y2="12" />
 					<line x1="3" y1="18" x2="21" y2="18" />
 				</svg>
 			</button>
-			<a href="/" class="hidden md:inline text-neutral-500 hover:text-neutral-300 text-sm transition-colors">
+			<a href="/" class="hidden md:inline text-sm transition-colors" style="color: var(--text-muted)">
 				Portal
 			</a>
-			<span class="hidden md:inline text-neutral-700">/</span>
-			<h1 class="text-sm font-medium">Dojo</h1>
+			<span class="hidden md:inline" style="color: var(--rb-border)">/</span>
+			<h1 class="text-sm font-medium" style="color: var(--text-heading)">Dojo</h1>
 		</div>
 		<div class="flex items-center gap-2 md:gap-3">
 			<button
+				onclick={() => {
+					if (chat.conversationId) loadConversation(chat.conversationId);
+				}}
+				class="text-xs transition-colors"
+				style="color: var(--text-muted)"
+				title="Refresh messages"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="23 4 23 10 17 10" />
+					<polyline points="1 20 1 14 7 14" />
+					<path d="m3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+				</svg>
+			</button>
+			<button
 				onclick={logout}
-				class="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+				class="text-xs transition-colors"
+				style="color: var(--text-muted)"
 			>
 				Sign out
 			</button>
-			<span class="hidden md:inline text-xs text-neutral-600">FLUX v1</span>
+			<span class="hidden md:inline text-xs" style="color: var(--text-muted)">FLUX v1</span>
 			<span
-				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle'
-					? 'bg-emerald-500'
-					: chat.agentPhase === 'error'
-						? 'bg-red-500'
-						: 'bg-amber-400 animate-pulse'}"
+				class="w-2 h-2 rounded-full {chat.agentPhase === 'idle' ? '' : chat.agentPhase === 'error' ? '' : 'animate-pulse'}"
+				style="background: {chat.agentPhase === 'idle' ? 'var(--rb-success)' : chat.agentPhase === 'error' ? 'var(--rb-error)' : 'var(--rb-warning)'}"
 			></span>
 		</div>
 	</header>

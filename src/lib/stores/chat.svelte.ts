@@ -10,6 +10,7 @@ export interface Message {
 	toolCalls?: ToolCall[];
 	prUrl?: string;
 	prNumber?: number;
+	verdict?: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
 }
 
 export interface ToolCall {
@@ -101,6 +102,21 @@ export class ChatState {
 		}
 	}
 
+	setPrOpened(messageId: string, url: string, number: number) {
+		const msg = this.messages.find((m) => m.id === messageId);
+		if (msg) {
+			msg.prUrl = url;
+			msg.prNumber = number;
+		}
+	}
+
+	setVerdict(messageId: string, verdict: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') {
+		const msg = this.messages.find((m) => m.id === messageId);
+		if (msg) {
+			msg.verdict = verdict;
+		}
+	}
+
 	completeToolCall(messageId: string, tool: string, result: string) {
 		const msg = this.messages.find((m) => m.id === messageId);
 		if (msg?.toolCalls) {
@@ -158,16 +174,35 @@ export class ChatState {
 			created_at: string;
 		}>
 	) {
+		const mapMsg = (m: (typeof dbMessages)[0]) => ({
+			id: m.id,
+			role: m.role === 'user' ? ('user' as const) : ('agent' as const),
+			agent: m.agent ?? undefined,
+			content: m.content ?? '',
+			status: 'complete' as const,
+			timestamp: new Date(m.created_at).getTime()
+		});
+
+		// If currently streaming, merge instead of replace
+		if (this.isStreaming) {
+			const existingIds = new Set(this.messages.map((m) => m.id));
+			const newMsgs = dbMessages
+				.filter((m) => !existingIds.has(m.id))
+				.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
+				.map(mapMsg);
+			const streamingIdx = this.messages.findIndex((m) => m.status === 'streaming');
+			if (streamingIdx >= 0) {
+				this.messages.splice(streamingIdx, 0, ...newMsgs);
+			} else {
+				this.messages.push(...newMsgs);
+			}
+			return;
+		}
+
+		// Not streaming — full replace
 		this.messages = dbMessages
 			.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content))
-			.map((m) => ({
-				id: m.id,
-				role: m.role === 'user' ? ('user' as const) : ('agent' as const),
-				agent: m.agent ?? undefined,
-				content: m.content ?? '',
-				status: 'complete' as const,
-				timestamp: new Date(m.created_at).getTime()
-			}));
+			.map(mapMsg);
 		this.isStreaming = false;
 		this.agentPhase = 'idle';
 		this.error = null;

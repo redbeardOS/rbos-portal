@@ -1,1 +1,185 @@
 @import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════
+   RBOS Theme System — CSS Custom Properties
+   Each [data-theme] block defines the full color palette.
+   Components use var(--token-name) via Tailwind arbitrary values.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Default / RedBeard Dark ── */
+:root,
+[data-theme="redbeard-dark"] {
+  --bg-surface: #111318;
+  --bg-deep: #0a0c10;
+  --bg-raised: #1a1d24;
+  --rb-border: #2a2d35;
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #d97706;
+  --text-heading: #f0f0f0;
+  --text-body: #c8ccd4;
+  --text-muted: #6b7280;
+
+  --rb-role-owner: #f59e0b;
+  --rb-role-admin: #f59e0b;
+  --rb-role-editor: #60a5fa;
+  --rb-role-viewer: #6b7280;
+  --rb-success: #22c55e;
+  --rb-warning: #eab308;
+  --rb-error: #ef4444;
+  --rb-info: #3b82f6;
+  --rb-perm-full: #22c55e;
+  --rb-perm-write: #3b82f6;
+  --rb-perm-read: #eab308;
+}
+
+[data-theme="midnight-teal"] {
+  --bg-surface: #0f1720;
+  --bg-deep: #0a1118;
+  --bg-raised: #152230;
+  --rb-border: #1e3348;
+  --accent-primary: #14b8a6;
+  --accent-primary-hover: #0d9488;
+  --text-heading: #e2f0f0;
+  --text-body: #b0c4c8;
+  --text-muted: #5b7a80;
+
+  --rb-role-owner: #14b8a6;
+  --rb-role-admin: #14b8a6;
+  --rb-role-editor: #38bdf8;
+  --rb-role-viewer: #5b7a80;
+  --rb-success: #14b8a6;
+  --rb-warning: #fbbf24;
+  --rb-error: #f87171;
+  --rb-info: #38bdf8;
+  --rb-perm-full: #14b8a6;
+  --rb-perm-write: #38bdf8;
+  --rb-perm-read: #fbbf24;
+}
+
+[data-theme="ember-forge"] {
+  --bg-surface: #181210;
+  --bg-deep: #100c0a;
+  --bg-raised: #241c18;
+  --rb-border: #3a2a22;
+  --accent-primary: #ef4444;
+  --accent-primary-hover: #dc2626;
+  --text-heading: #fce8e0;
+  --text-body: #d4b8a8;
+  --text-muted: #8a6a58;
+
+  --rb-role-owner: #ef4444;
+  --rb-role-admin: #ef4444;
+  --rb-role-editor: #fb923c;
+  --rb-role-viewer: #8a6a58;
+  --rb-success: #4ade80;
+  --rb-warning: #fbbf24;
+  --rb-error: #ef4444;
+  --rb-info: #fb923c;
+  --rb-perm-full: #4ade80;
+  --rb-perm-write: #fb923c;
+  --rb-perm-read: #fbbf24;
+}
+
+[data-theme="aurora-green"] {
+  --bg-surface: #0e1210;
+  --bg-deep: #080c0a;
+  --bg-raised: #161e1a;
+  --rb-border: #243028;
+  --accent-primary: #22c55e;
+  --accent-primary-hover: #16a34a;
+  --text-heading: #e0f8e8;
+  --text-body: #b0d0b8;
+  --text-muted: #5a8a68;
+
+  --rb-role-owner: #22c55e;
+  --rb-role-admin: #22c55e;
+  --rb-role-editor: #4ade80;
+  --rb-role-viewer: #5a8a68;
+  --rb-success: #22c55e;
+  --rb-warning: #facc15;
+  --rb-error: #f87171;
+  --rb-info: #4ade80;
+  --rb-perm-full: #22c55e;
+  --rb-perm-write: #4ade80;
+  --rb-perm-read: #facc15;
+}
+
+[data-theme="phantom-purple"] {
+  --bg-surface: #12101a;
+  --bg-deep: #0a0812;
+  --bg-raised: #1c1828;
+  --rb-border: #2e2840;
+  --accent-primary: #a855f7;
+  --accent-primary-hover: #9333ea;
+  --text-heading: #ece0f8;
+  --text-body: #c4b0d8;
+  --text-muted: #7a5a9a;
+
+  --rb-role-owner: #a855f7;
+  --rb-role-admin: #a855f7;
+  --rb-role-editor: #c084fc;
+  --rb-role-viewer: #7a5a9a;
+  --rb-success: #4ade80;
+  --rb-warning: #fbbf24;
+  --rb-error: #f87171;
+  --rb-info: #c084fc;
+  --rb-perm-full: #4ade80;
+  --rb-perm-write: #c084fc;
+  --rb-perm-read: #fbbf24;
+}
+
+[data-theme="silicon-muse"] {
+  --bg-surface: #1a1a1a;
+  --bg-deep: #131313;
+  --bg-raised: #222222;
+  --rb-border: #333333;
+  --accent-primary: #87a38f;
+  --accent-primary-hover: #97b39f;
+  --text-heading: #f0ede6;
+  --text-body: #d4d0c8;
+  --text-muted: #4a4a4a;
+
+  --rb-role-owner: #a39f87;
+  --rb-role-admin: #87a38f;
+  --rb-role-editor: #8797a3;
+  --rb-role-viewer: #9a9a9a;
+  --rb-success: #87a38f;
+  --rb-warning: #a39f87;
+  --rb-error: #a38787;
+  --rb-info: #8797a3;
+  --rb-perm-full: #87a38f;
+  --rb-perm-write: #8797a3;
+  --rb-perm-read: #a39f87;
+}
+
+[data-theme="silicon-muse-light"] {
+  --bg-surface: #ffffff;
+  --bg-deep: #f4f7f5;
+  --bg-raised: #eef2ef;
+  --rb-border: #c8d5cb;
+  --accent-primary: #4d7a56;
+  --accent-primary-hover: #3d6a46;
+  --text-heading: #1a2e1f;
+  --text-body: #3a4d3e;
+  --text-muted: #6b7f6e;
+
+  --rb-role-owner: #6b6445;
+  --rb-role-admin: #4d7a56;
+  --rb-role-editor: #5a7080;
+  --rb-role-viewer: #7a7a7a;
+  --rb-success: #4d7a56;
+  --rb-warning: #8a7a3a;
+  --rb-error: #8a5a5a;
+  --rb-info: #5a7080;
+  --rb-perm-full: #4d7a56;
+  --rb-perm-write: #5a7080;
+  --rb-perm-read: #8a7a3a;
+}
+
+/* PWA safe area support */
+.pwa-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
