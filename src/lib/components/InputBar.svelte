@@ -35,7 +35,7 @@
 
 <div class="border-t px-3 md:px-4 py-2.5 md:py-3 backdrop-blur-sm" style="border-color: var(--rb-border); background: var(--bg-deep)">
 	{#if chat.error}
-		<div class="mb-2 px-3 py-2 rounded-lg border text-xs flex items-center justify-between"
+		<div class="mb-2 px-3 py-2 rounded-lg border text-sm flex items-center justify-between"
 			style="background: color-mix(in srgb, var(--rb-error) 10%, transparent); border-color: color-mix(in srgb, var(--rb-error) 30%, transparent); color: var(--rb-error)">
 			<span>{chat.error}</span>
 			<button
@@ -57,7 +57,7 @@
 			placeholder={chat.isStreaming ? 'FLUX is working...' : 'Message FLUX...'}
 			disabled={chat.isStreaming}
 			rows={1}
-			class="flex-1 resize-none rounded-xl border px-3 md:px-4 py-2.5 text-sm focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+			class="flex-1 resize-none rounded-xl border px-3 md:px-4 py-2.5 text-base focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 			style="background: var(--bg-raised); border-color: var(--rb-border); color: var(--text-heading)"
 		></textarea>
 

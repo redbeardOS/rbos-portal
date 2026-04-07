@@ -98,7 +98,7 @@
 							<div class="text-sm truncate" style="color: var(--text-heading)">
 								{conv.title || 'Untitled'}
 							</div>
-							<div class="text-[10px] mt-0.5 flex items-center justify-between" style="color: var(--text-muted)">
+							<div class="text-xs mt-0.5 flex items-center justify-between" style="color: var(--text-muted)">
 								<span>{formatTime(conv.updated_at)}</span>
 								<button
 									onclick={(e) => { e.stopPropagation(); confirmDeleteId = conv.id; }}

@@ -3,7 +3,7 @@
 </script>
 
 <div class="p-3 border-t" style="border-color: var(--rb-border)">
-	<span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted)">
+	<span class="text-[11px] font-medium uppercase tracking-wider" style="color: var(--text-muted)">
 		Theme
 	</span>
 	<div class="mt-2 grid grid-cols-4 gap-1.5">
@@ -24,7 +24,7 @@
 			</button>
 		{/each}
 	</div>
-	<p class="mt-1.5 text-[10px] truncate" style="color: var(--text-muted)">
+	<p class="mt-1.5 text-[11px] truncate" style="color: var(--text-muted)">
 		{themeState.meta.label}
 	</p>
 </div>

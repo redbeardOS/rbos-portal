@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/* ── Global Font ── */
+html {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga' on, 'calt' on;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    RBOS Theme System — CSS Custom Properties
    Each [data-theme] block defines the full color palette.

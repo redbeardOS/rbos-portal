@@ -35,8 +35,8 @@
 	{#if chat.messages.length === 0}
 		<div class="flex items-center justify-center h-full">
 			<div class="text-center space-y-2">
-				<p class="text-sm" style="color: var(--text-muted)">No messages yet.</p>
-				<p class="text-xs" style="color: var(--text-muted); opacity: 0.6">Send a message to start a conversation with FLUX.</p>
+				<p class="text-base" style="color: var(--text-muted)">No messages yet.</p>
+				<p class="text-sm" style="color: var(--text-muted); opacity: 0.6">Send a message to start a conversation with FLUX.</p>
 			</div>
 		</div>
 	{:else}

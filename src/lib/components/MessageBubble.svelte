@@ -30,7 +30,7 @@
 			<div class="mb-2 space-y-1">
 				{#each message.toolCalls ?? [] as tc}
 					<div
-						class="text-xs font-mono px-2 py-1 rounded flex items-center gap-2"
+						class="text-xs px-2 py-1 rounded flex items-center gap-2"
 						style="background: var(--bg-deep); color: var(--text-muted)"
 					>
 						{#if tc.status === 'running'}
@@ -46,14 +46,14 @@
 			</div>
 		{/if}
 
-		<div class="whitespace-pre-wrap break-words text-sm leading-relaxed">
+		<div class="whitespace-pre-wrap break-words text-base leading-relaxed">
 			{message.content}{#if isStreaming}<span
 					class="inline-block w-1.5 h-4 ml-0.5 animate-pulse align-middle"
 					style="background: var(--accent-primary)"
 				></span>{/if}
 		</div>
 
-		<div class="text-[10px] mt-1.5 {isUser ? 'text-right' : 'text-left'}" style="color: var(--text-muted)">
+		<div class="text-xs mt-1.5 {isUser ? 'text-right' : 'text-left'}" style="color: var(--text-muted)">
 			{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 		</div>
 	</div>

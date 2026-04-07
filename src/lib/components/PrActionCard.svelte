@@ -90,7 +90,7 @@
 				<span>{verdictConfig.icon}</span>
 				{verdictConfig.label}
 			</span>
-			<span class="text-xs font-mono" style="color: var(--text-muted)">PR #{message.prNumber}</span>
+			<span class="text-xs" style="color: var(--text-muted)">PR #{message.prNumber}</span>
 		</div>
 	</div>
 
@@ -101,7 +101,7 @@
 				href={message.prUrl}
 				target="_blank"
 				rel="noopener noreferrer"
-				class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
+				class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors"
 				style="border-color: var(--rb-border); color: var(--text-body)"
 			>
 				<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
@@ -113,7 +113,7 @@
 
 		<button
 			onclick={toggleDiff}
-			class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
+			class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors"
 			style="border-color: var(--rb-border); color: var(--text-body)"
 		>
 			{#if loadingDiff}
@@ -130,7 +130,7 @@
 			<button
 				onclick={handleMerge}
 				disabled={merging}
-				class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors disabled:opacity-50"
+				class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg text-white transition-colors disabled:opacity-50"
 				style="background: var(--rb-success)"
 			>
 				{#if merging}
@@ -147,7 +147,7 @@
 
 		{#if merged}
 			<span
-				class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
+				class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg"
 				style="color: var(--rb-success); background: color-mix(in srgb, var(--rb-success) 10%, transparent)"
 			>
 				✅ Merged
@@ -165,7 +165,7 @@
 			class="mt-3 border rounded-lg overflow-x-auto max-h-[400px] overflow-y-auto"
 			style="border-color: var(--rb-border)"
 		>
-			<pre class="text-[11px] leading-relaxed p-3 font-mono whitespace-pre" style="color: var(--text-body); background: var(--bg-deep)">{diffText}</pre>
+			<pre class="text-[11px] leading-relaxed p-3 whitespace-pre" style="color: var(--text-body); background: var(--bg-deep)">{diffText}</pre>
 		</div>
 	{:else if showDiff && !diffText && !loadingDiff}
 		<p class="mt-2 text-xs" style="color: var(--text-muted)">
