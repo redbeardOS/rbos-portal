@@ -86,7 +86,7 @@ export const FLUX_CONFIG: AgentConfig = {
 	role: 'Staff Architect',
 	description: 'Writes code, reviews architecture, ships features',
 	systemPrompt: SYSTEM_PROMPT,
-	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr'],
+	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr', 'read_memory', 'write_memory', 'babelfish_query'],
 	branchPrefix: 'flux/',
 	color: 'var(--accent-primary)',
 	selectable: true

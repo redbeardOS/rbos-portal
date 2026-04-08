@@ -65,7 +65,7 @@ export const IOIO_CONFIG: AgentConfig = {
 	role: 'Implementer',
 	description: 'Implements approved specs as working code',
 	systemPrompt: SYSTEM_PROMPT,
-	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr'],
+	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr', 'read_memory', 'write_memory', 'babelfish_query'],
 	branchPrefix: 'ioio/',
 	color: 'var(--rb-success)',
 	selectable: true

@@ -21,6 +21,8 @@ import {
 	type PrResult
 } from './github';
 import { getAgent, DEFAULT_AGENT_ID } from './agents/registry';
+import { readMemories, upsertMemory } from './agents/memory';
+import { env } from '$env/dynamic/private';
 
 // ── OpenAI-compatible tool definitions ─────────────────────────
 
@@ -121,6 +123,83 @@ export const TOOL_DEFINITIONS = [
 					}
 				},
 				required: ['title', 'body']
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'read_memory',
+			description:
+				'Read your persistent memories — learned preferences, patterns, and warnings from past work. Optionally filter by category or key.',
+			parameters: {
+				type: 'object',
+				properties: {
+					category: {
+						type: 'string',
+						enum: ['preference', 'pattern', 'warning'],
+						description: 'Filter by memory category (optional)'
+					},
+					key: {
+						type: 'string',
+						description: 'Filter by specific memory key (optional)'
+					}
+				},
+				required: []
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'write_memory',
+			description:
+				'Save a learned preference, pattern, or warning to your persistent memory. These memories persist across sessions and influence your future work. Use this when you discover something worth remembering.',
+			parameters: {
+				type: 'object',
+				properties: {
+					category: {
+						type: 'string',
+						enum: ['preference', 'pattern', 'warning'],
+						description: 'Memory category: preference (Alex likes X), pattern (this approach works), warning (avoid this)'
+					},
+					key: {
+						type: 'string',
+						description: 'Semantic key for this memory (e.g., "component-extraction-threshold", "css-variable-naming")'
+					},
+					value: {
+						type: 'string',
+						description: 'The memory content — what you learned'
+					},
+					source: {
+						type: 'string',
+						description: 'What triggered this memory (e.g., "PR #12 review", "SAM feedback")'
+					}
+				},
+				required: ['category', 'key', 'value']
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'babelfish_query',
+			description:
+				'Query the Babelfish knowledge graph for information about the RBOS platform, specs, architecture, deny-list, and project knowledge. Returns relevant context from ingested documents.',
+			parameters: {
+				type: 'object',
+				properties: {
+					query: {
+						type: 'string',
+						description: 'Natural language question about the project'
+					},
+					mode: {
+						type: 'string',
+						enum: ['naive', 'local', 'global', 'hybrid'],
+						description: 'Query mode: naive (vector), local (entity), global (community), hybrid (all). Default: hybrid.'
+					}
+				},
+				required: ['query']
 			}
 		}
 	}
@@ -321,6 +400,61 @@ export async function executeTool(
 					content: `PR #${pr.number} opened: ${pr.url}\nTitle: ${pr.title}`,
 					prOpened: pr
 				};
+			}
+
+			case 'read_memory': {
+				const memories = await readMemories(
+					ctx.agentId,
+					args.category as string | undefined,
+					args.key as string | undefined
+				);
+				if (memories.length === 0) {
+					return { content: 'No memories found matching your query.' };
+				}
+				const formatted = memories.map((m) => {
+					const val = typeof m.value === 'string' ? m.value : JSON.stringify(m.value);
+					return `[${m.category}] ${m.key} (confidence: ${(m.confidence * 100).toFixed(0)}%): ${val}`;
+				}).join('\n');
+				return { content: `Your memories (${memories.length}):\n${formatted}` };
+			}
+
+			case 'write_memory': {
+				const category = args.category as 'preference' | 'pattern' | 'warning';
+				const key = args.key as string;
+				const value = args.value as string;
+				const source = args.source as string | undefined;
+				await upsertMemory(ctx.agentId, category, key, value, source);
+				return { content: `Memory saved: [${category}] ${key}` };
+			}
+
+			case 'babelfish_query': {
+				const query = args.query as string;
+				const mode = (args.mode as string) ?? 'hybrid';
+				const lightragUrl = env.LIGHTRAG_BASE_URL;
+				if (!lightragUrl) {
+					return { content: 'Error: LIGHTRAG_BASE_URL not configured. Babelfish knowledge graph is not available.' };
+				}
+				try {
+					const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+					const apiKey = env.OLLAMA_API_KEY;
+					if (apiKey) headers['X-Ollama-Key'] = apiKey;
+
+					const res = await fetch(`${lightragUrl}/query`, {
+						method: 'POST',
+						headers,
+						body: JSON.stringify({ query, mode }),
+						signal: AbortSignal.timeout(60_000)
+					});
+					if (!res.ok) {
+						const errText = await res.text();
+						return { content: `Babelfish query error: ${res.status} — ${errText}` };
+					}
+					const data = await res.json() as { result: string };
+					return { content: data.result || 'No results found.' };
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : 'Babelfish query failed';
+					return { content: `Babelfish query error: ${msg}` };
+				}
 			}
 
 			default:
