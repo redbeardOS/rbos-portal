@@ -7,7 +7,7 @@
 
 ---
 
-## Current Phase: PHASE 2 COMPLETE — Phase 3 next (Ollama/LightRAG/Headless)
+## Current Phase: PHASE 3 COMPLETE — Full stack operational
 
 ## Quick Status
 
@@ -27,17 +27,22 @@
 | 2B-6: Alex Merge/Reject Signals | COMPLETE | — | — | POST /api/webhook — GitHub webhook for PR merge/reject |
 | 2C-1: Absorb Loop | COMPLETE | — | — | absorb.ts + POST /api/absorb endpoint |
 | 2C-2: Memory Dashboard | COMPLETE | — | — | /dojo/memory — agent tabs, memories, feedback, skills |
-| 3A-1: LightRAG Deployment | NOT STARTED | — | — | Docker on srv1291263 |
-| 3A-2: Babelfish Tool | NOT STARTED | — | — | Depends on 3A-1 |
-| 3B-1: Headless Endpoint | NOT STARTED | — | — | Depends on agent registry (done) |
-| 3B-2: n8n Integration | NOT STARTED | — | — | Depends on 3B-1 |
+| 3A-0: Ollama Infrastructure | COMPLETE | — | — | Docker at /opt/ollama/, https://ollama.rb79.io |
+| 3A-0: Ollama Client Module | COMPLETE | — | — | src/lib/server/ollama.ts |
+| 3A-1: LightRAG Deployment | COMPLETE | — | — | Docker at /opt/lightrag/, https://lightrag.rb79.io |
+| 3A-2: Babelfish Tool | COMPLETE | — | — | babelfish_query tool on all agents |
+| 3B-1: Headless Endpoint | COMPLETE | — | — | POST /api/headless |
+| 3B-2: n8n Integration | READY | — | — | Endpoint exists, needs n8n workflow config |
 
 ## Known Issues / Blockers
 
 - Deny-list enforcement is partial: only D2 (filesystem) and D3 (secrets) are code-enforced in tools.ts. D1, D4, D5, D6, D7 are documented but not enforced.
 - GitHub webhook needs to be configured in repo settings (URL: /api/webhook, secret: GITHUB_WEBHOOK_SECRET)
 - Some stale agent branches exist from testing (doc/*, flux/*) — can be cleaned up.
-- All Phase 2 changes are on feat/agent-memory-system branch (PR #35) — needs merge.
+- All changes are on feat/agent-memory-system branch (PR #35) — needs merge.
+- Vercel env vars needed: OLLAMA_BASE_URL=https://ollama.rb79.io, OLLAMA_API_KEY, LIGHTRAG_BASE_URL=https://lightrag.rb79.io
+- n8n workflow needs to be created to call POST /api/absorb (daily) and POST /api/headless (scheduled tasks)
+- LightRAG document ingestion in progress (architecture.md) — CPU inference is slow, check /stats endpoint.
 
 ## Architecture Decisions Made
 
