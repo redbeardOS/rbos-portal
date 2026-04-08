@@ -7,7 +7,7 @@
 
 ---
 
-## Current Phase: 2B-6 / 2C-2 (Alex Signals + Memory Dashboard)
+## Current Phase: PHASE 2 COMPLETE — Phase 3 next (Ollama/LightRAG/Headless)
 
 ## Quick Status
 
@@ -24,9 +24,9 @@
 | 2B-3: QAE Agent | COMPLETE | fix/add-agent-team | #33 | Merged 2026-04-07 |
 | 2B-4: UXUI Agent | COMPLETE | fix/add-agent-team | #33 | Merged 2026-04-07 |
 | 2B-5: SAM Feedback Persistence | COMPLETE | — | — | sam.ts persistSamFeedback() wired into chat endpoint |
-| 2B-6: Alex Merge/Reject Signals | NOT STARTED | — | — | Needs webhook or poll for PR merge/reject events |
+| 2B-6: Alex Merge/Reject Signals | COMPLETE | — | — | POST /api/webhook — GitHub webhook for PR merge/reject |
 | 2C-1: Absorb Loop | COMPLETE | — | — | absorb.ts + POST /api/absorb endpoint |
-| 2C-2: Memory Dashboard | NOT STARTED | — | — | UI for Alex to view/edit agent memories |
+| 2C-2: Memory Dashboard | COMPLETE | — | — | /dojo/memory — agent tabs, memories, feedback, skills |
 | 3A-1: LightRAG Deployment | NOT STARTED | — | — | Docker on srv1291263 |
 | 3A-2: Babelfish Tool | NOT STARTED | — | — | Depends on 3A-1 |
 | 3B-1: Headless Endpoint | NOT STARTED | — | — | Depends on agent registry (done) |
@@ -35,10 +35,9 @@
 ## Known Issues / Blockers
 
 - Deny-list enforcement is partial: only D2 (filesystem) and D3 (secrets) are code-enforced in tools.ts. D1, D4, D5, D6, D7 are documented but not enforced.
-- Alex merge/reject signals (2B-6) not yet captured — need webhook or poll.
-- Memory dashboard (2C-2) not built — no UI for Alex to inspect agent memories yet.
+- GitHub webhook needs to be configured in repo settings (URL: /api/webhook, secret: GITHUB_WEBHOOK_SECRET)
 - Some stale agent branches exist from testing (doc/*, flux/*) — can be cleaned up.
-- Changes from 2026-04-08 session are local only — need to be committed and pushed.
+- All Phase 2 changes are on feat/agent-memory-system branch (PR #35) — needs merge.
 
 ## Architecture Decisions Made
 
