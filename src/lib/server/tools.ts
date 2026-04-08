@@ -22,6 +22,7 @@ import {
 } from './github';
 import { getAgent, DEFAULT_AGENT_ID } from './agents/registry';
 import { readMemories, upsertMemory } from './agents/memory';
+import { env } from '$env/dynamic/private';
 
 // ── OpenAI-compatible tool definitions ─────────────────────────
 
@@ -176,6 +177,29 @@ export const TOOL_DEFINITIONS = [
 					}
 				},
 				required: ['category', 'key', 'value']
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'babelfish_query',
+			description:
+				'Query the Babelfish knowledge graph for information about the RBOS platform, specs, architecture, deny-list, and project knowledge. Returns relevant context from ingested documents.',
+			parameters: {
+				type: 'object',
+				properties: {
+					query: {
+						type: 'string',
+						description: 'Natural language question about the project'
+					},
+					mode: {
+						type: 'string',
+						enum: ['naive', 'local', 'global', 'hybrid'],
+						description: 'Query mode: naive (vector), local (entity), global (community), hybrid (all). Default: hybrid.'
+					}
+				},
+				required: ['query']
 			}
 		}
 	}
@@ -401,6 +425,36 @@ export async function executeTool(
 				const source = args.source as string | undefined;
 				await upsertMemory(ctx.agentId, category, key, value, source);
 				return { content: `Memory saved: [${category}] ${key}` };
+			}
+
+			case 'babelfish_query': {
+				const query = args.query as string;
+				const mode = (args.mode as string) ?? 'hybrid';
+				const lightragUrl = env.LIGHTRAG_BASE_URL;
+				if (!lightragUrl) {
+					return { content: 'Error: LIGHTRAG_BASE_URL not configured. Babelfish knowledge graph is not available.' };
+				}
+				try {
+					const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+					const apiKey = env.OLLAMA_API_KEY;
+					if (apiKey) headers['X-Ollama-Key'] = apiKey;
+
+					const res = await fetch(`${lightragUrl}/query`, {
+						method: 'POST',
+						headers,
+						body: JSON.stringify({ query, mode }),
+						signal: AbortSignal.timeout(60_000)
+					});
+					if (!res.ok) {
+						const errText = await res.text();
+						return { content: `Babelfish query error: ${res.status} — ${errText}` };
+					}
+					const data = await res.json() as { result: string };
+					return { content: data.result || 'No results found.' };
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : 'Babelfish query failed';
+					return { content: `Babelfish query error: ${msg}` };
+				}
 			}
 
 			default:
