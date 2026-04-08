@@ -2,13 +2,15 @@
  * Absorb Loop — Self-Improvement Engine
  *
  * Processes unabsorbed feedback from SAM and Alex,
- * extracts patterns, updates agent memories, and promotes
- * high-confidence patterns to reusable skills.
+ * uses Ollama (local LLM) for semantic pattern extraction,
+ * updates agent memories, and promotes high-confidence patterns
+ * to reusable skills.
  *
  * This runs periodically (daily via n8n or manually via /api/absorb).
  */
 
 import { getSupabase } from '../supabase';
+import { ollamaGenerate } from '../ollama';
 import type { MemoryEntry, FeedbackEntry } from './memory';
 
 // ── Types ────────────────────────────────────────────────────
@@ -20,13 +22,122 @@ export interface AbsorbResult {
 	memoriesUpdated: number;
 	skillsPromoted: number;
 	memoriesDecayed: number;
+	ollamaUsed: boolean;
+}
+
+// ── Ollama Pattern Extraction ────────────────────────────────
+
+interface ExtractedPattern {
+	key: string;
+	category: 'preference' | 'pattern' | 'warning';
+	summary: string;
+}
+
+/**
+ * Use Ollama to extract a semantic key and summary from feedback content.
+ * Falls back to heuristic extraction if Ollama is unavailable.
+ */
+async function extractPattern(content: string, feedbackType: string): Promise<ExtractedPattern> {
+	try {
+		const prompt = `Extract a concise, reusable pattern from this code review feedback.
+
+Feedback type: ${feedbackType}
+Feedback: ${content.slice(0, 500)}
+
+Respond in EXACTLY this format (3 lines, no extra text):
+KEY: <lowercase-hyphenated-key-max-60-chars>
+CATEGORY: <preference|pattern|warning>
+SUMMARY: <one-sentence actionable rule>`;
+
+		const response = await ollamaGenerate(prompt, {
+			temperature: 0.1,
+			num_predict: 150,
+			system: 'You extract concise coding patterns from review feedback. Be precise and actionable.'
+		});
+
+		// Parse the structured response
+		const lines = response.trim().split('\n');
+		let key = '';
+		let category: ExtractedPattern['category'] = 'pattern';
+		let summary = '';
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (trimmed.startsWith('KEY:')) {
+				key = trimmed.slice(4).trim().toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60);
+			} else if (trimmed.startsWith('CATEGORY:')) {
+				const cat = trimmed.slice(9).trim().toLowerCase();
+				if (cat === 'preference' || cat === 'pattern' || cat === 'warning') {
+					category = cat;
+				}
+			} else if (trimmed.startsWith('SUMMARY:')) {
+				summary = trimmed.slice(8).trim();
+			}
+		}
+
+		if (key && summary) {
+			return { key, category, summary };
+		}
+
+		// Ollama responded but format was wrong — fall back
+		return heuristicExtract(content, feedbackType);
+	} catch {
+		// Ollama unavailable — fall back to heuristic
+		return heuristicExtract(content, feedbackType);
+	}
+}
+
+/**
+ * Heuristic fallback when Ollama is unavailable.
+ */
+function heuristicExtract(content: string, feedbackType: string): ExtractedPattern {
+	const key = content
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, '')
+		.trim()
+		.split(/\s+/)
+		.slice(0, 6)
+		.join('-')
+		.slice(0, 60) || 'unnamed-pattern';
+
+	const category: ExtractedPattern['category'] =
+		feedbackType === 'anti_pattern' || feedbackType === 'request_changes'
+			? 'warning'
+			: feedbackType === 'approve'
+				? 'preference'
+				: 'pattern';
+
+	return { key, category, summary: content.slice(0, 200) };
+}
+
+/**
+ * Use Ollama to generate a skill instruction from a high-confidence memory.
+ * Falls back to simple formatting if Ollama is unavailable.
+ */
+async function generateSkillInstruction(memKey: string, memValue: string): Promise<string> {
+	try {
+		const prompt = `Convert this learned pattern into a concise, actionable instruction for a code-writing AI agent.
+
+Pattern key: ${memKey}
+Pattern value: ${memValue.slice(0, 500)}
+
+Write a 1-3 sentence instruction the agent should follow. Be specific and direct.`;
+
+		return await ollamaGenerate(prompt, {
+			temperature: 0.2,
+			num_predict: 200,
+			system: 'You write concise coding instructions for AI agents.'
+		});
+	} catch {
+		return `Apply this learned pattern: ${memValue.slice(0, 300)}`;
+	}
 }
 
 // ── Absorb Feedback ──────────────────────────────────────────
 
 /**
  * Process unabsorbed feedback for a single agent.
- * Converts SAM/Alex feedback into memory entries.
+ * Uses Ollama for semantic pattern extraction when available.
  */
 export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 	const supabase = getSupabase();
@@ -36,7 +147,8 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 		memoriesCreated: 0,
 		memoriesUpdated: 0,
 		skillsPromoted: 0,
-		memoriesDecayed: 0
+		memoriesDecayed: 0,
+		ollamaUsed: false
 	};
 
 	// Fetch unabsorbed feedback
@@ -53,8 +165,12 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 	for (const item of feedback as FeedbackEntry[]) {
 		result.processed++;
 
-		// Derive a memory key from the feedback content (first 60 chars, slugified)
-		const memKey = deriveMemoryKey(item.content);
+		// Extract pattern semantically via Ollama (falls back to heuristic)
+		const pattern = await extractPattern(item.content, item.feedback_type);
+		if (pattern.key !== item.content.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().split(/\s+/).slice(0, 6).join('-').slice(0, 60)) {
+			result.ollamaUsed = true; // Ollama produced a different key than heuristic would
+		}
+
 		const source = item.pr_number ? `PR #${item.pr_number} (${item.source_agent})` : item.source_agent;
 
 		// Check if a related memory already exists
@@ -62,13 +178,12 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 			.from('agent_memory')
 			.select('id, confidence, category')
 			.eq('agent_id', agentId)
-			.eq('key', memKey)
+			.eq('key', pattern.key)
 			.single();
 
 		switch (item.feedback_type) {
 			case 'approve': {
 				if (existing) {
-					// Reinforce existing memory
 					const newConf = Math.min(1.0, existing.confidence + 0.15);
 					await supabase
 						.from('agent_memory')
@@ -76,18 +191,15 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 						.eq('id', existing.id);
 					result.memoriesUpdated++;
 				}
-				// Approvals without existing memory don't create new ones —
-				// they reinforce what's already learned
 				break;
 			}
 
 			case 'anti_pattern': {
 				if (existing) {
-					// Correct the memory — reset confidence and update value
 					await supabase
 						.from('agent_memory')
 						.update({
-							value: JSON.stringify(item.content),
+							value: JSON.stringify(pattern.summary),
 							confidence: 0.5,
 							category: 'warning',
 							source
@@ -95,12 +207,11 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 						.eq('id', existing.id);
 					result.memoriesUpdated++;
 				} else {
-					// New warning memory
 					await supabase.from('agent_memory').insert({
 						agent_id: agentId,
 						category: 'warning',
-						key: memKey,
-						value: JSON.stringify(item.content),
+						key: pattern.key,
+						value: JSON.stringify(pattern.summary),
 						confidence: 0.4,
 						source
 					});
@@ -111,7 +222,6 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 
 			case 'pattern': {
 				if (existing) {
-					// Reinforce pattern
 					const newConf = Math.min(1.0, existing.confidence + 0.1);
 					await supabase
 						.from('agent_memory')
@@ -119,12 +229,11 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 						.eq('id', existing.id);
 					result.memoriesUpdated++;
 				} else {
-					// New pattern memory
 					await supabase.from('agent_memory').insert({
 						agent_id: agentId,
-						category: 'pattern',
-						key: memKey,
-						value: JSON.stringify(item.content),
+						category: pattern.category,
+						key: pattern.key,
+						value: JSON.stringify(pattern.summary),
 						confidence: 0.3,
 						source
 					});
@@ -134,12 +243,11 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 			}
 
 			case 'request_changes': {
-				// Store as warning
 				if (existing) {
 					await supabase
 						.from('agent_memory')
 						.update({
-							value: JSON.stringify(item.content),
+							value: JSON.stringify(pattern.summary),
 							confidence: Math.min(1.0, existing.confidence + 0.1),
 							category: 'warning',
 							source
@@ -150,8 +258,8 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 					await supabase.from('agent_memory').insert({
 						agent_id: agentId,
 						category: 'warning',
-						key: memKey,
-						value: JSON.stringify(item.content),
+						key: pattern.key,
+						value: JSON.stringify(pattern.summary),
 						confidence: 0.4,
 						source
 					});
@@ -175,13 +283,12 @@ export async function absorbFeedback(agentId: string): Promise<AbsorbResult> {
 
 /**
  * Promote high-confidence patterns to reusable skills.
- * Patterns with confidence >= 0.7 become agent skills.
+ * Uses Ollama to generate actionable skill instructions.
  */
 export async function promoteSkills(agentId: string): Promise<number> {
 	const supabase = getSupabase();
 	let promoted = 0;
 
-	// Find high-confidence patterns that aren't already skills
 	const { data: candidates } = await supabase
 		.from('agent_memory')
 		.select('*')
@@ -194,7 +301,6 @@ export async function promoteSkills(agentId: string): Promise<number> {
 	if (!candidates?.length) return 0;
 
 	for (const mem of candidates as MemoryEntry[]) {
-		// Check if skill already exists
 		const skillName = `learned-${mem.key}`;
 		const { data: existing } = await supabase
 			.from('agent_skills')
@@ -204,7 +310,6 @@ export async function promoteSkills(agentId: string): Promise<number> {
 			.single();
 
 		if (existing) {
-			// Update existing skill's success rate
 			await supabase
 				.from('agent_skills')
 				.update({ success_rate: mem.confidence })
@@ -212,13 +317,15 @@ export async function promoteSkills(agentId: string): Promise<number> {
 			continue;
 		}
 
-		// Create new skill
+		// Use Ollama to generate a proper skill instruction
 		const val = typeof mem.value === 'string' ? mem.value : JSON.stringify(mem.value);
+		const instruction = await generateSkillInstruction(mem.key, val);
+
 		await supabase.from('agent_skills').insert({
 			agent_id: agentId,
 			skill_name: skillName,
 			description: `Learned pattern: ${mem.key}`,
-			instruction_text: `Apply this learned pattern: ${val}`,
+			instruction_text: instruction,
 			trigger_pattern: mem.key,
 			success_rate: mem.confidence
 		});
@@ -231,18 +338,24 @@ export async function promoteSkills(agentId: string): Promise<number> {
 // ── Memory Decay ─────────────────────────────────────────────
 
 /**
- * Decay stale memories. Reduces confidence for memories not updated
- * in the last 30 days. Deletes memories below 0.1 confidence.
+ * Decay stale memories for a specific agent (or all agents if no ID given).
+ * Reduces confidence for memories not updated in the last 30 days.
+ * Deletes memories below 0.1 confidence.
  */
-export async function decayMemories(): Promise<number> {
+export async function decayMemories(agentId?: string): Promise<number> {
 	const supabase = getSupabase();
 	const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-	// Decay confidence by 0.05 for stale memories
-	const { data: stale } = await supabase
+	let query = supabase
 		.from('agent_memory')
 		.select('id, confidence')
 		.lt('updated_at', thirtyDaysAgo);
+
+	if (agentId) {
+		query = query.eq('agent_id', agentId);
+	}
+
+	const { data: stale } = await query;
 
 	if (!stale?.length) return 0;
 
@@ -272,7 +385,6 @@ export async function runAbsorbCycle(agentId?: string): Promise<AbsorbResult[]> 
 	const supabase = getSupabase();
 	const results: AbsorbResult[] = [];
 
-	// Determine which agents to process
 	let agentIds: string[];
 	if (agentId) {
 		agentIds = [agentId];
@@ -287,26 +399,9 @@ export async function runAbsorbCycle(agentId?: string): Promise<AbsorbResult[]> 
 	for (const id of agentIds) {
 		const absorbResult = await absorbFeedback(id);
 		absorbResult.skillsPromoted = await promoteSkills(id);
-		absorbResult.memoriesDecayed = await decayMemories();
+		absorbResult.memoriesDecayed = await decayMemories(id);
 		results.push(absorbResult);
 	}
 
 	return results;
-}
-
-// ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Derive a memory key from feedback content.
- * Takes the first ~60 chars and slugifies them.
- */
-function deriveMemoryKey(content: string): string {
-	return content
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, '')
-		.trim()
-		.split(/\s+/)
-		.slice(0, 6)
-		.join('-')
-		.slice(0, 60) || 'unnamed-pattern';
 }
