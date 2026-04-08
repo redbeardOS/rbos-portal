@@ -95,7 +95,7 @@ export const UXUI_CONFIG: AgentConfig = {
 	role: 'UI/UX Specialist',
 	description: 'Builds and refines Svelte components and interfaces',
 	systemPrompt: SYSTEM_PROMPT,
-	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr'],
+	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr', 'read_memory', 'write_memory'],
 	branchPrefix: 'uxui/',
 	color: 'var(--rb-role-editor)',
 	selectable: true

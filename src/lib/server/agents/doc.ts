@@ -67,7 +67,7 @@ export const DOC_CONFIG: AgentConfig = {
 	role: 'Spec Author',
 	description: 'Drafts specs, schemas, and documentation',
 	systemPrompt: SYSTEM_PROMPT,
-	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr'],
+	tools: ['read_file', 'write_file', 'list_files', 'git_commit', 'github_create_pr', 'read_memory', 'write_memory'],
 	branchPrefix: 'doc/',
 	color: 'var(--rb-info)',
 	selectable: true

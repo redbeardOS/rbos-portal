@@ -6,6 +6,7 @@
  */
 
 import { SAM_SYSTEM_PROMPT, OPENROUTER_MODEL } from './flux-prompt';
+import { recordFeedback } from './agents/memory';
 import { env } from '$env/dynamic/private';
 
 interface SamReviewResult {
@@ -157,4 +158,37 @@ export async function postPrComment(
 			body: JSON.stringify({ body: prefix + review })
 		}
 	);
+}
+
+/**
+ * Persist SAM's review as structured feedback in agent_feedback.
+ * Called after SAM reviews a PR — feeds the self-improvement absorb loop.
+ */
+export async function persistSamFeedback(
+	agentId: string,
+	prNumber: number,
+	verdict: string,
+	review: string
+): Promise<void> {
+	try {
+		if (verdict === 'APPROVE') {
+			await recordFeedback(agentId, 'sam', prNumber, 'approve', review);
+		} else if (verdict === 'REQUEST_CHANGES') {
+			// Store the full review as request_changes feedback
+			await recordFeedback(agentId, 'sam', prNumber, 'request_changes', review);
+
+			// Also extract individual issues as anti_pattern entries
+			// Look for lines like "- [severity: critical|major] file:line — description"
+			const issuePattern = /- \[severity: (critical|major)\][^\n]+/g;
+			let match;
+			while ((match = issuePattern.exec(review)) !== null) {
+				await recordFeedback(agentId, 'sam', prNumber, 'anti_pattern', match[0]);
+			}
+		} else {
+			// COMMENT verdict — store as pattern observation
+			await recordFeedback(agentId, 'sam', prNumber, 'pattern', review);
+		}
+	} catch (err) {
+		console.error('Failed to persist SAM feedback:', err);
+	}
 }

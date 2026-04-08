@@ -14,9 +14,10 @@
  */
 
 import { getAgent, DEFAULT_AGENT_ID, OPENROUTER_MODEL } from '$lib/server/agents/registry';
+import { buildAgentPrompt } from '$lib/server/agents/memory';
 import { TaskContext, executeTool, getToolsForAgent } from '$lib/server/tools';
 import { getSupabase } from '$lib/server/supabase';
-import { reviewPr, postPrComment } from '$lib/server/sam';
+import { reviewPr, postPrComment, persistSamFeedback } from '$lib/server/sam';
 import { sendPushToUser } from '$lib/server/push-notify';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
@@ -196,6 +197,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				// Emit conversation ID so frontend can track it
 				emit('conversation', { id: convId });
 
+				// Build memory-enhanced system prompt (loads learned preferences + skills)
+				const systemPrompt = await buildAgentPrompt(agentConfig, message);
+
 				let iteration = 0;
 
 				while (iteration < MAX_ITERATIONS) {
@@ -203,7 +207,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 					// Build messages for this API call
 					const messages: ChatMessage[] = [
-						{ role: 'system', content: agentConfig.systemPrompt },
+						{ role: 'system', content: systemPrompt },
 						...history
 					];
 
@@ -500,7 +504,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							verdict
 						);
 
-						// Persist SAM's review
+						// Persist SAM feedback for self-improvement loop
+						await persistSamFeedback(
+							resolvedAgentId,
+							ctx.prResult.number,
+							verdict,
+							review
+						);
+
+						// Persist SAM's review as a chat message
 						await supabase.from('messages').insert({
 							conversation_id: convId,
 							role: 'assistant',

@@ -21,6 +21,7 @@ import {
 	type PrResult
 } from './github';
 import { getAgent, DEFAULT_AGENT_ID } from './agents/registry';
+import { readMemories, upsertMemory } from './agents/memory';
 
 // ── OpenAI-compatible tool definitions ─────────────────────────
 
@@ -121,6 +122,60 @@ export const TOOL_DEFINITIONS = [
 					}
 				},
 				required: ['title', 'body']
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'read_memory',
+			description:
+				'Read your persistent memories — learned preferences, patterns, and warnings from past work. Optionally filter by category or key.',
+			parameters: {
+				type: 'object',
+				properties: {
+					category: {
+						type: 'string',
+						enum: ['preference', 'pattern', 'warning'],
+						description: 'Filter by memory category (optional)'
+					},
+					key: {
+						type: 'string',
+						description: 'Filter by specific memory key (optional)'
+					}
+				},
+				required: []
+			}
+		}
+	},
+	{
+		type: 'function' as const,
+		function: {
+			name: 'write_memory',
+			description:
+				'Save a learned preference, pattern, or warning to your persistent memory. These memories persist across sessions and influence your future work. Use this when you discover something worth remembering.',
+			parameters: {
+				type: 'object',
+				properties: {
+					category: {
+						type: 'string',
+						enum: ['preference', 'pattern', 'warning'],
+						description: 'Memory category: preference (Alex likes X), pattern (this approach works), warning (avoid this)'
+					},
+					key: {
+						type: 'string',
+						description: 'Semantic key for this memory (e.g., "component-extraction-threshold", "css-variable-naming")'
+					},
+					value: {
+						type: 'string',
+						description: 'The memory content — what you learned'
+					},
+					source: {
+						type: 'string',
+						description: 'What triggered this memory (e.g., "PR #12 review", "SAM feedback")'
+					}
+				},
+				required: ['category', 'key', 'value']
 			}
 		}
 	}
@@ -321,6 +376,31 @@ export async function executeTool(
 					content: `PR #${pr.number} opened: ${pr.url}\nTitle: ${pr.title}`,
 					prOpened: pr
 				};
+			}
+
+			case 'read_memory': {
+				const memories = await readMemories(
+					ctx.agentId,
+					args.category as string | undefined,
+					args.key as string | undefined
+				);
+				if (memories.length === 0) {
+					return { content: 'No memories found matching your query.' };
+				}
+				const formatted = memories.map((m) => {
+					const val = typeof m.value === 'string' ? m.value : JSON.stringify(m.value);
+					return `[${m.category}] ${m.key} (confidence: ${(m.confidence * 100).toFixed(0)}%): ${val}`;
+				}).join('\n');
+				return { content: `Your memories (${memories.length}):\n${formatted}` };
+			}
+
+			case 'write_memory': {
+				const category = args.category as 'preference' | 'pattern' | 'warning';
+				const key = args.key as string;
+				const value = args.value as string;
+				const source = args.source as string | undefined;
+				await upsertMemory(ctx.agentId, category, key, value, source);
+				return { content: `Memory saved: [${category}] ${key}` };
 			}
 
 			default:
