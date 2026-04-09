@@ -133,7 +133,8 @@ export const POST: RequestHandler = async ({ request }) => {
 					tools: agentTools.length > 0 ? agentTools : undefined,
 					stream: false,
 					max_tokens: 8192
-				})
+				}),
+				signal: AbortSignal.timeout(60_000)
 			});
 
 			if (!res.ok) {

@@ -14,6 +14,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { recordFeedback, boostMemoryConfidence } from '$lib/server/agents/memory';
+import { AGENTS } from '$lib/server/agents/registry';
 import { getSupabase } from '$lib/server/supabase';
 import { env } from '$env/dynamic/private';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -32,14 +33,15 @@ function verifySignature(payload: string, signature: string | null, secret: stri
 }
 
 /**
- * Extract the agent ID from a branch name.
+ * Extract the agent ID from a branch name using the registry's branch prefixes.
  * e.g., "flux/add-health-endpoint" → "flux"
  *       "doc/onboarding-spec" → "doc"
  */
 function agentIdFromBranch(branch: string): string | null {
-	const prefixes = ['flux', 'doc', 'ioio', 'qae', 'uxui'];
-	for (const prefix of prefixes) {
-		if (branch.startsWith(`${prefix}/`)) return prefix;
+	for (const [id, config] of AGENTS) {
+		if (config.branchPrefix && branch.startsWith(config.branchPrefix)) {
+			return id;
+		}
 	}
 	return null;
 }
@@ -48,13 +50,15 @@ export const POST: RequestHandler = async ({ request }) => {
 	const secret = env.GITHUB_WEBHOOK_SECRET;
 	const rawBody = await request.text();
 
-	// Verify signature if secret is configured
+	// Verify signature — reject unsigned requests in production
 	if (secret) {
 		const sig = request.headers.get('x-hub-signature-256');
 		if (!verifySignature(rawBody, sig, secret)) {
 			console.warn('[webhook] Invalid signature — rejecting');
 			return json({ error: 'Invalid signature' }, { status: 401 });
 		}
+	} else {
+		console.warn('[webhook] GITHUB_WEBHOOK_SECRET not set — accepting unsigned request');
 	}
 
 	const event = request.headers.get('x-github-event');
